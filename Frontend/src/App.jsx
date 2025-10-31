@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { BlockchainProvider } from "./context/BlockchainContext";
 import Login from "./components/Auth/Login";
 import ECPortal from "./components/EC/ECPortal";
 import VoterPortal from "./components/Voter/VoterPortal";
@@ -138,7 +139,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <BlockchainProvider>
+        <AppContent />
+      </BlockchainProvider>
     </AuthProvider>
   );
 }

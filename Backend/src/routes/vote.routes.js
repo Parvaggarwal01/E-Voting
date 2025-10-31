@@ -6,7 +6,7 @@ const {
 } = require("../controllers/vote.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const router = express.Router();
-router.use(authMiddleware); // Protect all vote routes
+router.use(authMiddleware);
 router.get("/public-key", getPublicKey); // Get public key for blinding
 router.post("/request-signature", requestSignature);
 router.post("/submit", submitVote);

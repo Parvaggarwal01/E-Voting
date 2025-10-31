@@ -242,6 +242,50 @@ const OneTimeReceiptView = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Blockchain Verification Info */}
+              {receipt.blockchainTxHash && (
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">
+                    🔗 Blockchain Transaction Hash
+                  </label>
+                  <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <code className="text-green-800 font-mono text-sm break-all">
+                        {receipt.blockchainTxHash}
+                      </code>
+                      <button
+                        onClick={() =>
+                          copyToClipboard(receipt.blockchainTxHash)
+                        }
+                        className="ml-4 px-3 py-1 rounded text-sm bg-green-600 hover:bg-green-700 text-white transition-colors flex-shrink-0"
+                      >
+                        Copy TX
+                      </button>
+                    </div>
+                    <p className="text-green-700 text-xs mt-2">
+                      ✅ Your vote is permanently stored on blockchain -
+                      tamper-proof and immutable
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {receipt.walletAddress && (
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">
+                    Connected Wallet
+                  </label>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                    <code className="text-blue-800 font-mono text-sm">
+                      {receipt.walletAddress}
+                    </code>
+                    <p className="text-blue-700 text-xs mt-1">
+                      Vote linked to your blockchain identity for verification
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -311,7 +355,8 @@ const OneTimeReceiptView = () => {
                     >
                       <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
                       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-D                    </svg>
+                      D{" "}
+                    </svg>
                   )}
                 </span>
                 {copied ? "Copied!" : "Copy Code"}
@@ -342,17 +387,33 @@ D                    </svg>
               </button>
             </div>
 
-            {/* Warning */}
+            {/* Enhanced Security Notice */}
             <div className="p-4 bg-black rounded-lg border border-[#E8EDF3]">
               <h3 className="text-white font-bold mb-2">
-                Important Security Notice
+                🔐 Enhanced Blockchain Security
               </h3>
               <ul className="text-white text-sm space-y-1">
-                <li>• This receipt proves your vote was counted</li>
-                <li>• It does NOT reveal who you voted for</li>
-                <li>• Save the receipt code - you won't see it again</li>
-                <li>• Use the code to verify your vote later</li>
-                <li>• Receipt is completely anonymous</li>
+                <li>
+                  • Your vote is encrypted with blind signatures (EC can't see
+                  your choice)
+                </li>
+                <li>
+                  •{" "}
+                  {receipt.isBlockchainVerified
+                    ? "✅ Stored immutably on blockchain"
+                    : "⚠️ Blockchain storage failed"}
+                </li>
+                <li>• Receipt code proves your vote was counted</li>
+                <li>
+                  •{" "}
+                  {receipt.blockchainTxHash
+                    ? "Blockchain TX hash provides tamper-proof verification"
+                    : "Save receipt code for traditional verification"}
+                </li>
+                <li>• Your identity remains completely anonymous</li>
+                <li>
+                  • Commissioner cannot manipulate blockchain-stored votes
+                </li>
               </ul>
             </div>
           </div>
