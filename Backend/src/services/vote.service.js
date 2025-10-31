@@ -11,7 +11,10 @@ exports.issueBlindSignature = async ({
   console.log("🔐 Processing blind signature request...");
   console.log("Voter ID:", voterId);
   console.log("Election ID:", electionId);
-  console.log("Blinded message (EC cannot see vote content):", blindedMessage.substring(0, 50) + "...");
+  console.log(
+    "Blinded message (EC cannot see vote content):",
+    blindedMessage.substring(0, 50) + "..."
+  );
 
   // Check if voter has already requested a signature for this election
   const existingVoteStatus = await prisma.voterElectionStatus.findUnique({

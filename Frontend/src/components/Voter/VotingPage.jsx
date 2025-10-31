@@ -61,7 +61,7 @@ function VotingPage() {
       // Step 2: BLIND the vote message using RSA blinding
       console.log("🔐 Blinding vote message (hiding from EC)...");
       const blindedMessage = blindSignature.blindMessage(voteMessage);
-      
+
       console.log("📝 Requesting blind signature from EC...");
       // Step 3: Request blind signature (EC cannot see vote content)
       const signatureResponse = await api.post("/vote/request-signature", {
@@ -266,9 +266,7 @@ function VotingPage() {
                             </p>
                           </div>
                           {isSelected && (
-                            <div className="ml-auto text-white text-xl">
-                              ✓
-                            </div>
+                            <div className="ml-auto text-white text-xl">✓</div>
                           )}
                         </div>
                       </div>
@@ -287,8 +285,8 @@ function VotingPage() {
                 {selectedParty && (
                   <div className="p-3 bg-blue-300 rounded-lg border border-blue-400">
                     <p className="text-black text-sm">
-                      Your vote will be encrypted and anonymous. You'll
-                      receive a receipt for verification.
+                      Your vote will be encrypted and anonymous. You'll receive
+                      a receipt for verification.
                     </p>
                   </div>
                 )}
