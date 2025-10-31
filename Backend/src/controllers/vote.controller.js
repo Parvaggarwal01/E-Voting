@@ -31,9 +31,11 @@ exports.getPublicKey = async (req, res) => {
 
 exports.submitVote = async (req, res) => {
   const { voteMessage, signature, electionId } = req.body;
+  const { voterId } = req.user;
 
   try {
     const receipt = await voteService.castVote({
+      voterId, // Pass for double voting prevention only
       voteMessage,
       signature,
       electionId,

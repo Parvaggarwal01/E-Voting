@@ -18,7 +18,7 @@ function VotingPage() {
   }, []);
 
   const initializeCrypto = async () => {
-    const initialized = await blindSignature.initialize();
+    const initialized = await blindSignature.initialize(api);
     if (!initialized) {
       console.error("Failed to initialize cryptographic system");
     }

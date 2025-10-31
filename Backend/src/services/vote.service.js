@@ -16,16 +16,9 @@ exports.issueBlindSignature = async ({
     blindedMessage.substring(0, 50) + "..."
   );
 
-  // Check if voter has already requested a signature for this election
-  const existingVoteStatus = await prisma.voterElectionStatus.findUnique({
-    where: { voterId_electionId: { voterId, electionId } },
-  });
-
-  if (existingVoteStatus) {
-    throw new Error(
-      "You have already requested a signature for this election."
-    );
-  }
+  // For better anonymity, don't check voter status during signature phase
+  // This prevents linking voters to specific signature requests
+  // Double voting will be prevented during the actual vote submission
 
   // CRITICAL: Sign the blinded message WITHOUT knowing its content
   // The EC cannot see what party the voter is voting for
@@ -33,21 +26,27 @@ exports.issueBlindSignature = async ({
     blindedMessage,
   });
 
-  // Record that this voter has used their signature for this election
-  // This prevents double voting but doesn't link the vote content to the voter
-  await prisma.voterElectionStatus.create({
-    data: { voterId, electionId },
-  });
+  // DON'T record voterElectionStatus here for better anonymity
+  // We'll record it only when the actual vote is cast
 
   console.log("✅ Blind signature issued (vote content remains private)");
   return signedBlindedVote;
 };
 
-exports.castVote = async ({ voteMessage, signature, electionId }) => {
+exports.castVote = async ({ voterId, voteMessage, signature, electionId }) => {
   console.log("🔍 Verifying anonymous vote signature...");
   console.log("Vote Message:", voteMessage);
   console.log("Signature Type:", typeof signature);
   console.log("Signature Length:", signature ? signature.length : 0);
+
+  // Check if voter has already cast a vote for this election
+  const existingVoteStatus = await prisma.voterElectionStatus.findUnique({
+    where: { voterId_electionId: { voterId, electionId } },
+  });
+
+  if (existingVoteStatus) {
+    throw new Error("You have already voted in this election.");
+  }
 
   // Verify the unblinded signature against the original message
   const isValid = cryptoHelpers.verifySignature({
@@ -106,6 +105,12 @@ exports.castVote = async ({ voteMessage, signature, electionId }) => {
     },
   });
   console.log("✅ Receipt saved to database:", receipt);
+
+  // NOW record that this voter has voted (prevents double voting)
+  await prisma.voterElectionStatus.create({
+    data: { voterId, electionId },
+  });
+  console.log("✅ Voter status recorded (prevents double voting)");
 
   const result = { receiptCode };
   console.log("📤 Returning receipt result:", result);
