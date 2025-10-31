@@ -1,53 +1,37 @@
 const hre = require("hardhat");
-const fs = require("fs");
 
 async function main() {
-  console.log("🚀 Deploying ImmutableVoting contract to Ganache...");
+  console.log("Deploying contracts to Ganache...");
 
-  // Get network info
-  const network = await hre.ethers.provider.getNetwork();
-  console.log("🌐 Network:", network.name);
-  console.log("🆔 Chain ID:", network.chainId);
-
-  // Deploy the contract
-  const ImmutableVoting = await hre.ethers.getContractFactory(
-    "ImmutableVoting"
-  );
-  const voting = await ImmutableVoting.deploy();
-
-  await voting.waitForDeployment();
-  const contractAddress = await voting.getAddress();
-
-  console.log("✅ ImmutableVoting deployed to:", contractAddress);
-  console.log("🔧 Admin address:", await voting.admin());
-
-  // Save deployment info for frontend
-  const deploymentInfo = {
-    contractAddress: contractAddress,
-    network: network.name,
-    chainId: network.chainId.toString(),
-    deploymentTime: new Date().toISOString(),
-    ganacheUrl: "http://127.0.0.1:7545",
-    adminAddress: await voting.admin(),
-  };
-
-  // Write to file for frontend integration
-  fs.writeFileSync(
-    "./deployment-info.json",
-    JSON.stringify(deploymentInfo, null, 2)
-  );
-
-  console.log("📄 Deployment info saved to deployment-info.json");
-  console.log("\n🎉 Contract successfully deployed!");
+  // 1. Deploy the VoterRegistry first
+  const voterRegistry = await hre.ethers.deployContract("VoterRegistry");
+  await voterRegistry.waitForDeployment();
   console.log(
-    "📋 Copy this address for frontend integration:",
-    contractAddress
+    `✅ VoterRegistry deployed to: ${voterRegistry.target}`
   );
+
+  // FOR YOUR HACKATHON, JUST HARDCODE THEM:
+  const hardcodedPartyIds = ["bjp@party.gov", "congress@party.gov", "aap@party.gov"];
+  console.log(`Configuring with parties: ${hardcodedPartyIds.join(", ")}`);
+
+  // 3. Deploy the BallotBox
+  const ballotBox = await hre.ethers.deployContract("BallotBox", [
+    voterRegistry.target, // Pass the registry address
+    hardcodedPartyIds,
+  ]);
+  await ballotBox.waitForDeployment();
+  console.log(
+    `✅ BallotBox deployed to: ${ballotBox.target}`
+  );
+
+  console.log("\n--- 🚀 DEPLOYMENT COMPLETE ---");
+  console.log("Save these addresses in your .env files!");
+  console.log(`VOTER_REGISTRY_ADDRESS="${voterRegistry.target}"`);
+  console.log(`BALLOT_BOX_ADDRESS="${ballotBox.target}"`);
+  console.log("---------------------------------");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("❌ Deployment failed:", error);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

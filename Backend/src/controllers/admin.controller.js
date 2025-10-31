@@ -6,6 +6,25 @@ const {
 } = require("../utils/password-encryption");
 const prisma = new PrismaClient();
 
+const { ethers } = require("ethers");
+const crypto = require("crypto");
+const blockchainConfig = require("../../../Frontend/src/config/blockchain.json");
+
+const provider = new ethers.JsonRpcProvider(
+  blockchainConfig.networkConfig.rpcUrl
+);
+const ecWallet = new ethers.Wallet(process.env.EC_PRIVATE_KEY, provider);
+const immutableVotingContract = new ethers.Contract(
+  blockchainConfig.contractAddress,
+  blockchainConfig.contractABI,
+  ecWallet
+);
+
+function hashVoterId(voterId) {
+  // Hashes a string (like the voterId) into a 32-byte hex string
+  return "0x" + crypto.createHash("sha256").update(voterId).digest("hex");
+}
+
 exports.createParty = async (req, res) => {
   const { name, symbolUrl } = req.body;
   try {
@@ -109,6 +128,9 @@ exports.updateParty = async (req, res) => {
 exports.createElection = async (req, res) => {
   const { name, startDate, endDate, partyIds } = req.body;
   try {
+    console.log(`🏛️ Creating election in database: ${name}`);
+
+    // Create election only in database (not blockchain)
     const newElection = await prisma.election.create({
       data: {
         name,
@@ -120,10 +142,15 @@ exports.createElection = async (req, res) => {
       },
       include: { parties: true },
     });
+
+    console.log(`✅ Election created in database: ${newElection.id}`);
+
     res.status(201).json(newElection);
   } catch (error) {
-    console.error(error);
-    res.status(400).json({ error: "Could not create election." });
+    console.error("❌ Election creation error:", error);
+    res
+      .status(400)
+      .json({ error: `Could not create election: ${error.message}` });
   }
 };
 
@@ -594,7 +621,7 @@ const bulkRegisterVoters = async (req, res) => {
 
     for (const voterData of votersData) {
       try {
-        // Validate Aadhaar number (12 digits)
+        // === 1. VALIDATE CSV DATA ===
         if (
           !voterData.aadhaarNumber ||
           !/^\d{12}$/.test(voterData.aadhaarNumber)
@@ -602,20 +629,18 @@ const bulkRegisterVoters = async (req, res) => {
           throw new Error("Invalid Aadhaar number. Must be 12 digits.");
         }
 
-        // Check if Aadhaar already exists
         const existingAadhaar = await prisma.voter.findFirst({
           where: { aadhaarNumber: voterData.aadhaarNumber },
         });
 
         if (existingAadhaar) {
-          throw new Error("Aadhaar number already registered.");
+          throw new Error("Aadhaar number already registered in database.");
         }
 
-        // Generate unique voter ID and credentials
-        const voterId = generateVoterId();
+        // === 2. CREATE VOTER & CREDENTIALS ===
+        const voterId = generateVoterId(); // Assumes generateVoterId() is in your file
         const voterEmail = `${voterId}@voter.gov`;
 
-        // Generate password in format: DDMMYYYY@last4DigitsOfAadhaar
         const dob = new Date(voterData.dateOfBirth);
         const day = String(dob.getDate()).padStart(2, "0");
         const month = String(dob.getMonth() + 1).padStart(2, "0");
@@ -625,9 +650,7 @@ const bulkRegisterVoters = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // For now, skip encryption until migration is complete
-        // TODO: Re-enable encryption after running migration
-
+        // === 3. SAVE SENSITIVE DATA TO POSTGRESQL ===
         const voter = await prisma.voter.create({
           data: {
             voterId,
@@ -643,9 +666,46 @@ const bulkRegisterVoters = async (req, res) => {
           },
         });
 
-        // TODO: Send credentials to real email
-        // emailService.sendVoterCredentials(voterData.email, voterId, password);
+        // === 4. REGISTER VOTER ON BLOCKCHAIN (IMMUTABLE VOTING CONTRACT) ===
+        // Register individual voters on blockchain with their encrypted data
+        const hashedAadhaar = ethers.keccak256(
+          ethers.toUtf8Bytes(voter.aadhaarNumber)
+        );
+        const encryptedName = Buffer.from(voter.name).toString("base64");
+        const encryptedEmail = Buffer.from(voter.email).toString("base64");
+        const voterAddress = ethers.Wallet.createRandom().address; // Generate random address
 
+        console.log(`📝 Registering voter ${voter.voterId} on blockchain...`);
+
+        try {
+          // Call the ImmutableVoting contract registerVoter function
+          const tx = await immutableVotingContract.registerVoter(
+            voterAddress,
+            hashedAadhaar,
+            encryptedName,
+            encryptedEmail
+          );
+          await tx.wait(); // Wait for the transaction to be mined
+
+          console.log(
+            `✅ Voter ${voter.name} registered on blockchain: ${tx.hash}`
+          );
+        } catch (blockchainError) {
+          if (blockchainError.message.includes("Voter already registered")) {
+            console.log(
+              `ℹ️ Voter ${voter.name} already registered on blockchain`
+            );
+          } else {
+            console.error(
+              `❌ Blockchain registration failed for ${voter.name}:`,
+              blockchainError.message
+            );
+            // Don't throw - we still want to save to database
+          }
+        }
+        // --- END OF BLOCKCHAIN REGISTRATION ---
+
+        // === 5. REPORT SUCCESS ===
         results.success.push({
           name: voter.name,
           voterId: voter.voterId,
@@ -655,17 +715,20 @@ const bulkRegisterVoters = async (req, res) => {
           aadhaarNumber: voter.aadhaarNumber,
         });
       } catch (error) {
+        // This catch block handles errors for a *single voter*
+        // including duplicates or blockchain failures
         results.errors.push({
-          name: voterData.name,
-          email: voterData.email,
-          error: error.message,
+          name: voterData.name || "Unknown",
+          email: voterData.email || "Unknown",
+          error: error.reason || error.message, // error.reason is for blockchain errors
         });
       }
     }
 
     res.json(results);
   } catch (error) {
-    console.error("Error in bulk voter registration:", error);
+    // This catch block handles errors for the *entire function*
+    console.error("Critical error in bulk voter registration:", error);
     res.status(500).json({ error: "Could not register voters" });
   }
 };

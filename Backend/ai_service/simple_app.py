@@ -176,25 +176,25 @@ def search_chunks(chunks, query):
     """Simple text-based search for chunks"""
     query_words = query.lower().split()
     scored_chunks = []
-    
+
     for chunk in chunks:
         text = chunk['text'].lower()
         score = 0
-        
+
         # Count word matches
         for word in query_words:
             score += text.count(word)
-        
+
         # Bonus for exact phrase matches
         if query.lower() in text:
             score += 5
-            
+
         if score > 0:
             scored_chunks.append({
                 'text': chunk['text'],
                 'score': score
             })
-    
+
     return scored_chunks
 
 @app.route('/chat', methods=['POST'])
@@ -204,16 +204,16 @@ def chat_with_ollama():
         data = request.json
         query = data.get('message') or data.get('query', '')
         party = data.get('party', 'all')
-        
+
         if not query:
             return jsonify({
                 'success': False,
                 'error': 'No message provided'
             })
-        
+
         # First, search for relevant chunks
         relevant_chunks = []
-        
+
         if party == 'all':
             # Search across all parties
             for party_id, party_data in manifestos.items():
@@ -233,7 +233,7 @@ def chat_with_ollama():
                     'metadata': {'partyName': manifestos[party]['partyName']},
                     'score': chunk['score']
                 })
-        
+
         # Sort by relevance score
         relevant_chunks.sort(key=lambda x: x['score'], reverse=True)
 

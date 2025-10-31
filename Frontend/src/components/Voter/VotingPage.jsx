@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../services/api";
 import { blindSignature } from "../../utils/cryptoBlinding";
-import { useBlockchain } from "../../context/BlockchainContext";
-import BlockchainStatus from "../Blockchain/BlockchainStatus";
+import { useAuth } from "../../context/AuthContext"; // Import useAuth
+import CryptoJS from "crypto-js"; // Import CryptoJS for hashing
 
 function VotingPage() {
   const [elections, setElections] = useState([]);
@@ -11,19 +11,11 @@ function VotingPage() {
   const [selectedParty, setSelectedParty] = useState("");
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
-  const [blockchainTxHash, setBlockchainTxHash] = useState(null);
   const navigate = useNavigate();
-
-  const {
-    isConnected,
-    walletAddress,
-    castVoteOnBlockchain,
-    loading: blockchainLoading,
-  } = useBlockchain();
+  const { user } = useAuth(); // Get the logged-in voter from AuthContext
 
   useEffect(() => {
     fetchElections();
-    // Initialize crypto system
     initializeCrypto();
   }, []);
 
@@ -51,23 +43,27 @@ function VotingPage() {
     }
   };
 
+  /**
+   * Hashes the voter's unique ID (e.g., "VTR123...") to match the
+   * hash stored on the blockchain by the admin controller.
+   */
+  function hashVoterId(voterId) {
+    if (!voterId) {
+      throw new Error("Voter ID is not available. Please log in again.");
+    }
+    // Hashes the string to match the backend's hash function
+    return "0x" + CryptoJS.SHA256(voterId).toString(CryptoJS.enc.Hex);
+  }
+
   const castVote = async () => {
     if (!selectedElection || !selectedParty) return;
 
-    // Check blockchain connection
-    if (!isConnected) {
-      alert("Please connect your wallet to cast vote on blockchain!");
-      return;
-    }
-
     setVoting(true);
-    setBlockchainTxHash(null);
 
     try {
-      console.log("🗳️ Starting BLOCKCHAIN-ENABLED BLIND vote process...");
+      console.log("🗳️ Starting BLIND vote process...");
       console.log("Selected Election:", selectedElection.id);
       console.log("Selected Party (will be hidden from EC):", selectedParty);
-      console.log("Wallet Address:", walletAddress);
 
       // Step 1: Create vote message with randomness
       const voteMessage = JSON.stringify({
@@ -75,15 +71,14 @@ function VotingPage() {
         electionId: selectedElection.id,
         timestamp: Date.now(),
         nonce: Math.random().toString(36).substring(2, 15),
-        walletAddress: walletAddress, // Include wallet for blockchain tracking
       });
 
-      // Step 2: BLIND the vote message using RSA blinding
+      // Step 2: BLIND the vote message
       console.log("🔐 Blinding vote message (hiding from EC)...");
       const blindedMessage = blindSignature.blindMessage(voteMessage);
 
+      // Step 3: Request blind signature from EC's backend
       console.log("📝 Requesting blind signature from EC...");
-      // Step 3: Request blind signature (EC cannot see vote content)
       const signatureResponse = await api.post("/vote/request-signature", {
         blindedMessage,
         electionId: selectedElection.id,
@@ -96,37 +91,22 @@ function VotingPage() {
         signatureResponse.data.signedBlindedMessage
       );
 
-      console.log("📤 Submitting anonymous vote to backend...");
-      // Step 5: Submit the vote with unblinded signature
-      const voteResponse = await api.post("/vote/submit", {
-        voteMessage: voteMessage,
-        signature: unblindedSignature,
+      // Step 5: SUBMIT VOTE THROUGH BACKEND (NO WALLET NEEDED)
+      // The backend uses EC wallet to submit to blockchain
+      console.log("📤 Submitting vote through backend (no wallet needed)...");
+
+      // Get the voter's unique, non-PII ID from the auth context
+      const hashedVoterId = hashVoterId(user.voterId);
+
+      // Send vote data to backend - backend handles blockchain submission
+      const voteResponse = await api.post("/vote/submit-to-chain", {
+        partyId: selectedParty,
+        hashedVoterId: hashedVoterId,
+        unblindedSignature: "0x" + unblindedSignature,
         electionId: selectedElection.id,
       });
-      console.log("✅ Anonymous vote cast successfully in backend!");
 
-      // Step 6: Store vote immutably on blockchain 🔗
-      console.log("🔗 Storing vote immutably on blockchain...");
-      const blockchainVoteData = {
-        electionId: selectedElection.id,
-        voterAddress: walletAddress,
-        voteHash: voteResponse.data.receipt.receiptCode, // Use receipt as vote hash
-        partyId: selectedParty, // This will be encrypted in smart contract
-        timestamp: Date.now(),
-        signature: unblindedSignature.slice(0, 32), // First 32 chars for blockchain storage
-      };
-
-      const blockchainResult = await castVoteOnBlockchain(blockchainVoteData);
-
-      if (blockchainResult.success) {
-        console.log("✅ Vote stored immutably on blockchain!");
-        console.log("🔗 Transaction Hash:", blockchainResult.transactionHash);
-        setBlockchainTxHash(blockchainResult.transactionHash);
-      } else {
-        console.error(
-          "⚠️ Blockchain storage failed, but vote was cast in backend"
-        );
-      }
+      console.log("✅ Vote submitted to blockchain by backend!");
 
       // Clear sensitive cryptographic data
       blindSignature.clear();
@@ -141,27 +121,27 @@ function VotingPage() {
         return;
       }
 
-      console.log("🧾 Receipt code:", voteResponse.data.receipt.receiptCode);
+      console.log(
+        "🧾 Receipt (TxHash):",
+        voteResponse.data.receipt.receiptCode
+      );
 
-      // Store receipt with blockchain info
+      // Store receipt temporarily and redirect to one-time view
       const receiptData = {
-        receiptCode: voteResponse.data.receipt.receiptCode,
+        receiptCode: voteResponse.data.receipt.receiptCode, // This is the Blockchain TxHash
         electionName: selectedElection.name,
         timestamp: new Date().toISOString(),
-        blockchainTxHash: blockchainResult.success
-          ? blockchainResult.transactionHash
-          : null,
-        walletAddress: walletAddress,
-        isBlockchainVerified: blockchainResult.success,
+        isBlockchainVerified: true,
       };
 
-      console.log("💾 Storing enhanced receipt data:", receiptData);
+      console.log("💾 Storing receipt data:", receiptData);
       localStorage.setItem("oneTimeReceipt", JSON.stringify(receiptData));
 
       console.log("🔄 Navigating to receipt view...");
       navigate("/voter/receipt-view");
     } catch (error) {
-      console.error("❌ Enhanced vote casting error:", error);
+      console.error("❌ Blind vote casting error:", error);
+      // Clear sensitive data even on error
       blindSignature.clear();
       alert(
         "Error casting vote: " + (error.response?.data?.error || error.message)
@@ -181,15 +161,11 @@ function VotingPage() {
 
   return (
     <div className="space-y-6">
-      {/* Blockchain Status */}
-      <BlockchainStatus />
-
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-black">🗳️ Cast Your Vote</h1>
+        <h1 className="text-3xl font-bold text-black"> Cast Your Vote</h1>
         <p className="text-[#3F3F46] mt-1">
-          Your vote will be stored immutably on the blockchain for maximum
-          security and transparency.
+          Select an election and vote for your preferred party.
         </p>
       </div>
 
@@ -210,7 +186,6 @@ function VotingPage() {
               Available Elections
             </h2>
             {elections.map((election) => {
-              // Check if this election is the selected one
               const isSelected = selectedElection?.id === election.id;
 
               return (
@@ -222,11 +197,10 @@ function VotingPage() {
                   }}
                   className={`p-4 rounded-lg border shadow cursor-pointer transition-colors ${
                     isSelected
-                      ? "bg-black border-[#E2E8F0]" // text-white is removed from here,
-                      : "bg-white border-[#E2E8F0] hover:bg-[#f3f1f1]" // as we apply it to children
+                      ? "bg-black border-[#E2E8F0]"
+                      : "bg-white border-[#E2E8F0] hover:bg-[#f3f1f1]"
                   }`}
                 >
-                  {/* Conditionally change the h3 color */}
                   <h3
                     className={`text-lg font-bold ${
                       isSelected ? "text-white" : "text-black"
@@ -234,8 +208,6 @@ function VotingPage() {
                   >
                     {election.name}
                   </h3>
-
-                  {/* Conditionally change the first p color */}
                   <p
                     className={`text-sm ${
                       isSelected ? "text-gray-200" : "text-[#3F3F46]"
@@ -243,8 +215,6 @@ function VotingPage() {
                   >
                     Ends: {new Date(election.endDate).toLocaleString()}
                   </p>
-
-                  {/* Conditionally change the second p color */}
                   <p
                     className={`text-xs mt-1 ${
                       isSelected ? "text-gray-300" : "text-[#3F3F46]"
@@ -272,14 +242,12 @@ function VotingPage() {
 
                 <div className="space-y-3">
                   {selectedElection.parties.map((party) => {
-                    // Check if this party is the selected one
                     const isSelected = selectedParty === party.id;
 
                     return (
                       <div
                         key={party.id}
                         onClick={() => setSelectedParty(party.id)}
-                        // 1. Add the "group" class here
                         className={`p-4 rounded-lg border shadow cursor-pointer transition-colors group ${
                           isSelected
                             ? "bg-black border-[#E2E8F0]"
@@ -295,20 +263,18 @@ function VotingPage() {
                           <div>
                             <h3
                               className={`text-lg font-medium ${
-                                // 2. Make h3 text conditional
                                 isSelected
-                                  ? "text-white" // Selected state
-                                  : "text-black group-hover:text-white" // Unselected, but white on hover
+                                  ? "text-white"
+                                  : "text-black group-hover:text-white"
                               }`}
                             >
                               {party.name}
                             </h3>
                             <p
                               className={`text-sm ${
-                                // 3. Make p text conditional
                                 isSelected
-                                  ? "text-white" // Selected state (light-green/gray)
-                                  : "text-black group-hover:text-white" // Unselected, but light gray on hover
+                                  ? "text-white"
+                                  : "text-black group-hover:text-white"
                               }`}
                             >
                               Political Party
@@ -325,69 +291,17 @@ function VotingPage() {
 
                 <button
                   onClick={castVote}
-                  disabled={
-                    !selectedParty ||
-                    voting ||
-                    !isConnected ||
-                    blockchainLoading
-                  }
-                  className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+                  disabled={!selectedParty || voting}
+                  className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-lg transition-colors  disabled:cursor-not-allowed"
                 >
-                  {voting ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>
-                        {blockchainTxHash
-                          ? "Storing on Blockchain..."
-                          : "Casting Vote..."}
-                      </span>
-                    </div>
-                  ) : !isConnected ? (
-                    "🔗 Connect Wallet First"
-                  ) : (
-                    "🗳️ Cast Vote on Blockchain"
-                  )}
+                  {voting ? "Casting Vote..." : "Cast Your Vote"}
                 </button>
 
-                {blockchainTxHash && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-800 text-sm font-medium">
-                      🔗 Vote stored on blockchain!
-                    </p>
-                    <p className="text-green-600 text-xs mt-1 break-all">
-                      TX: {blockchainTxHash}
-                    </p>
-                  </div>
-                )}
-
-                {selectedParty && isConnected && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-blue-800 text-sm font-medium">
-                      🔐 Enhanced Security Features:
-                    </p>
-                    <ul className="text-blue-700 text-xs mt-1 space-y-1">
-                      <li>
-                        • Vote encrypted with blind signatures (EC cannot see
-                        your choice)
-                      </li>
-                      <li>• Immutable storage on blockchain (tamper-proof)</li>
-                      <li>
-                        • Connected wallet: {walletAddress?.slice(0, 6)}...
-                        {walletAddress?.slice(-4)}
-                      </li>
-                      <li>• You'll receive a blockchain-verified receipt</li>
-                    </ul>
-                  </div>
-                )}
-
-                {selectedParty && !isConnected && (
-                  <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <p className="text-orange-800 text-sm font-medium">
-                      ⚠️ Wallet Required for Blockchain Security
-                    </p>
-                    <p className="text-orange-700 text-xs mt-1">
-                      Connect your wallet to enable immutable vote storage on
-                      blockchain
+                {selectedParty && (
+                  <div className="p-3 bg-blue-300 rounded-lg border border-blue-400">
+                    <p className="text-black text-sm">
+                      Your vote will be encrypted, cast anonymously, and
+                      recorded immutably on the blockchain by the system.
                     </p>
                   </div>
                 )}

@@ -1,8 +1,8 @@
 {
-  "contractAddress": "0x3018CAaf94B070dc75b8590DB3178F46F8E564e6",
-  "network": "localhost",
-  "chainId": "1337",
-  "deploymentTime": "2025-10-31T13:36:52.534Z",
-  "ganacheUrl": "http://127.0.0.1:7545",
-  "adminAddress": "0x83eA8bad3CC592B6c190DB5230B237e1De7ce284"
+  "contractName": "VoteStorage",
+  "contractAddress": "0x13D1775c859e86D56935A7ba8c59f8FAbFA7c755",
+  "deployer": "0x83eA8bad3CC592B6c190DB5230B237e1De7ce284",
+  "deploymentTime": "2025-10-31T17:38:41.462Z",
+  "network": "ganache-local",
+  "blockNumber": 75
 }

@@ -41,14 +41,15 @@ model ECCommissioner {
 }
 
 model Election {
-  id            String                @id @default(cuid())
-  name          String
-  startDate     DateTime
-  endDate       DateTime
-  results       ElectionResult[]
-  status        ElectionStatus?
-  voterStatuses VoterElectionStatus[]
-  parties       Party[]               @relation("ElectionToParty")
+  id                  String                @id @default(cuid())
+  name                String
+  startDate           DateTime
+  endDate             DateTime
+  blockchainElectionId Int?                 @unique
+  results             ElectionResult[]
+  status              ElectionStatus?
+  voterStatuses       VoterElectionStatus[]
+  parties             Party[]               @relation("ElectionToParty")
 }
 
 model Party {

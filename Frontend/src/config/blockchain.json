@@ -1,5 +1,5 @@
 {
-  "contractAddress": "0x3018CAaf94B070dc75b8590DB3178F46F8E564e6",
+  "contractAddress": "0x13D1775c859e86D56935A7ba8c59f8FAbFA7c755",
   "contractABI": [
     {
       "inputs": [],
@@ -12,39 +12,20 @@
         {
           "indexed": true,
           "internalType": "uint256",
-          "name": "electionId",
+          "name": "voteId",
           "type": "uint256"
         },
         {
           "indexed": false,
           "internalType": "string",
-          "name": "name",
-          "type": "string"
-        }
-      ],
-      "name": "ElectionCreated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "voteHash",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "uint256",
           "name": "electionId",
-          "type": "uint256"
+          "type": "string"
         },
         {
           "indexed": false,
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
+          "internalType": "string",
+          "name": "partyId",
+          "type": "string"
         }
       ],
       "name": "VoteCast",
@@ -56,7 +37,7 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "voter",
+          "name": "voterAddress",
           "type": "address"
         },
         {
@@ -64,12 +45,6 @@
           "internalType": "bytes32",
           "name": "aadhaarHash",
           "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
         }
       ],
       "name": "VoterRegistered",
@@ -91,14 +66,69 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "electionId",
-          "type": "uint256"
+          "internalType": "string",
+          "name": "_electionId",
+          "type": "string"
         },
+        {
+          "internalType": "bytes32",
+          "name": "_voteHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_blindSignature",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_partyId",
+          "type": "string"
+        }
+      ],
+      "name": "castVote",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getAllVoterAddresses",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "",
+          "type": "address[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_voteId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getVote",
+      "outputs": [
         {
           "internalType": "bytes32",
           "name": "voteHash",
           "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "electionId",
+          "type": "string"
         },
         {
           "internalType": "bytes32",
@@ -109,256 +139,11 @@
           "internalType": "string",
           "name": "partyId",
           "type": "string"
-        }
-      ],
-      "name": "castVote",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "electionId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "name",
-          "type": "string"
         },
         {
           "internalType": "uint256",
-          "name": "startTime",
+          "name": "timestamp",
           "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "endTime",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string[]",
-          "name": "partyIds",
-          "type": "string[]"
-        },
-        {
-          "internalType": "string[]",
-          "name": "partyNames",
-          "type": "string[]"
-        }
-      ],
-      "name": "createElection",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "voterAddress",
-          "type": "address"
-        }
-      ],
-      "name": "deactivateVoter",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "electionIds",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "elections",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "name",
-          "type": "string"
-        },
-        {
-          "internalType": "uint256",
-          "name": "startTime",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "endTime",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        },
-        {
-          "internalType": "uint256",
-          "name": "totalVotes",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "electionId",
-          "type": "uint256"
-        }
-      ],
-      "name": "endElection",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "electionId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getElection",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "name",
-          "type": "string"
-        },
-        {
-          "internalType": "uint256",
-          "name": "startTime",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "endTime",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        },
-        {
-          "internalType": "string[]",
-          "name": "parties",
-          "type": "string[]"
-        },
-        {
-          "internalType": "uint256",
-          "name": "totalVotes",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getTotalVoters",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getTotalVotes",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "voteHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getVote",
-      "outputs": [
-        {
-          "components": [
-            {
-              "internalType": "uint256",
-              "name": "electionId",
-              "type": "uint256"
-            },
-            {
-              "internalType": "bytes32",
-              "name": "voteHash",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "uint256",
-              "name": "timestamp",
-              "type": "uint256"
-            },
-            {
-              "internalType": "bytes32",
-              "name": "blindSignature",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "string",
-              "name": "partyId",
-              "type": "string"
-            }
-          ],
-          "internalType": "struct ImmutableVoting.Vote",
-          "name": "",
-          "type": "tuple"
         }
       ],
       "stateMutability": "view",
@@ -368,88 +153,21 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "voterAddress",
+          "name": "_voterAddress",
           "type": "address"
         }
       ],
       "name": "getVoter",
       "outputs": [
         {
-          "components": [
-            {
-              "internalType": "string",
-              "name": "aadhaarHash",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "encryptedName",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "encryptedEmail",
-              "type": "string"
-            },
-            {
-              "internalType": "address",
-              "name": "walletAddress",
-              "type": "address"
-            },
-            {
-              "internalType": "uint256",
-              "name": "registrationTime",
-              "type": "uint256"
-            },
-            {
-              "internalType": "bool",
-              "name": "isActive",
-              "type": "bool"
-            }
-          ],
-          "internalType": "struct ImmutableVoting.Voter",
-          "name": "",
-          "type": "tuple"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "hasVoted",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "address",
           "name": "voterAddress",
           "type": "address"
         },
         {
-          "internalType": "string",
+          "internalType": "bytes32",
           "name": "aadhaarHash",
-          "type": "string"
+          "type": "bytes32"
         },
         {
           "internalType": "string",
@@ -460,6 +178,61 @@
           "internalType": "string",
           "name": "encryptedEmail",
           "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "registrationTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "isActive",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "_electionId",
+          "type": "string"
+        }
+      ],
+      "name": "getVotesForElection",
+      "outputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "",
+          "type": "uint256[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_voterAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_aadhaarHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "_encryptedName",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "_encryptedEmail",
+          "type": "string"
         }
       ],
       "name": "registerVoter",
@@ -468,19 +241,13 @@
       "type": "function"
     },
     {
-      "inputs": [
+      "inputs": [],
+      "name": "voteCount",
+      "outputs": [
         {
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
-        }
-      ],
-      "name": "voteHashes",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
         }
       ],
       "stateMutability": "view",
@@ -506,6 +273,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "voterCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "address",
@@ -516,9 +296,14 @@
       "name": "voters",
       "outputs": [
         {
-          "internalType": "string",
+          "internalType": "address",
+          "name": "voterAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
           "name": "aadhaarHash",
-          "type": "string"
+          "type": "bytes32"
         },
         {
           "internalType": "string",
@@ -529,11 +314,6 @@
           "internalType": "string",
           "name": "encryptedEmail",
           "type": "string"
-        },
-        {
-          "internalType": "address",
-          "name": "walletAddress",
-          "type": "address"
         },
         {
           "internalType": "uint256",
@@ -552,27 +332,22 @@
     {
       "inputs": [
         {
-          "internalType": "bytes32",
+          "internalType": "uint256",
           "name": "",
-          "type": "bytes32"
+          "type": "uint256"
         }
       ],
       "name": "votes",
       "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "electionId",
-          "type": "uint256"
-        },
         {
           "internalType": "bytes32",
           "name": "voteHash",
           "type": "bytes32"
         },
         {
-          "internalType": "uint256",
-          "name": "timestamp",
-          "type": "uint256"
+          "internalType": "string",
+          "name": "electionId",
+          "type": "string"
         },
         {
           "internalType": "bytes32",
@@ -583,6 +358,11 @@
           "internalType": "string",
           "name": "partyId",
           "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -591,9 +371,7 @@
   ],
   "networkConfig": {
     "chainId": 1337,
-    "networkName": "Ganache Local",
-    "rpcUrl": "http://127.0.0.1:7545"
-  },
-  "adminAddress": "0x83eA8bad3CC592B6c190DB5230B237e1De7ce284",
-  "deploymentTime": "2025-10-31T13:36:52.534Z"
+    "rpcUrl": "http://127.0.0.1:7545",
+    "networkName": "Ganache Local"
+  }
 }

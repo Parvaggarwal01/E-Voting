@@ -8,6 +8,7 @@ import ManageVoters from "./ManageVoters";
 import CreateElection from "./CreateElection";
 import ManageElections from "./ManageElections";
 import Results from "./Results";
+import BlockchainManager from "./BlockchainManager";
 
 function ECPortal() {
   return (
@@ -24,6 +25,7 @@ function ECPortal() {
             <Route path="create-election" element={<CreateElection />} />
             <Route path="manage-elections" element={<ManageElections />} />
             <Route path="results" element={<Results />} />
+            <Route path="blockchain" element={<BlockchainManager />} />
           </Routes>
         </main>
       </div>
