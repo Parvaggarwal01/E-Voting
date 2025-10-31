@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .card {
+        @apply bg-gray-800 p-6 rounded-lg shadow-lg;
+      }
+      .input-field {
+        @apply w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500;
+      }
+      .btn {
+        @apply w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition;
+      }
+      .party-checkbox {
+        @apply flex items-center p-2 bg-gray-700 rounded-md;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-100">
+    <div class="container mx-auto p-8">
+      <header class="text-center mb-10">
+        <h1 class="text-4xl font-bold text-white">
+          Election Commission Admin Panel
+        </h1>
+        <p class="text-gray-400">Manage Elections and Political Parties</p>
+      </header>
+
+      <!-- Main Layout Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- ====== ACTION PANEL (Left Column) ====== -->
+        <div class="md:col-span-1 space-y-8">
+          <!-- Create Party Card -->
+          <div class="card">
+            <h2 class="text-2xl font-bold mb-4">Create New Party</h2>
+            <form id="create-party-form" class="space-y-4">
+              <div>
+                <label for="party-name" class="block mb-2 text-sm font-medium"
+                  >Party Name</label
+                >
+                <input
+                  type="text"
+                  id="party-name"
+                  class="input-field"
+                  required
+                />
+              </div>
+              <div>
+                <label for="party-symbol" class="block mb-2 text-sm font-medium"
+                  >Party Symbol URL</label
+                >
+                <input
+                  type="text"
+                  id="party-symbol"
+                  class="input-field"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn">Create Party</button>
+            </form>
+          </div>
+
+          <!-- Create Election Card -->
+          <div class="card">
+            <h2 class="text-2xl font-bold mb-4">Create New Election</h2>
+            <form id="create-election-form" class="space-y-4">
+              <div>
+                <label
+                  for="election-name"
+                  class="block mb-2 text-sm font-medium"
+                  >Election Name</label
+                >
+                <input
+                  type="text"
+                  id="election-name"
+                  class="input-field"
+                  required
+                />
+              </div>
+              <div>
+                <label
+                  for="election-start"
+                  class="block mb-2 text-sm font-medium"
+                  >Start Date</label
+                >
+                <input
+                  type="datetime-local"
+                  id="election-start"
+                  class="input-field"
+                  required
+                />
+              </div>
+              <div>
+                <label for="election-end" class="block mb-2 text-sm font-medium"
+                  >End Date</label
+                >
+                <input
+                  type="datetime-local"
+                  id="election-end"
+                  class="input-field"
+                  required
+                />
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium"
+                  >Select Participating Parties</label
+                >
+                <div
+                  id="parties-for-election"
+                  class="space-y-2 p-3 bg-gray-900 rounded-md max-h-40 overflow-y-auto"
+                >
+                  <!-- Party checkboxes will be dynamically inserted here -->
+                </div>
+              </div>
+              <button type="submit" class="btn">Create Election</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- ====== DISPLAY PANEL (Right Column) ====== -->
+        <div class="md:col-span-2 space-y-8">
+          <!-- Current Parties Card -->
+          <div class="card">
+            <h2 class="text-2xl font-bold mb-4">Current Parties</h2>
+            <div id="parties-list" class="space-y-3 max-h-60 overflow-y-auto">
+              <!-- Parties list will be dynamically inserted here -->
+            </div>
+          </div>
+
+          <!-- Current Elections Card -->
+          <div class="card">
+            <h2 class="text-2xl font-bold mb-4">Current Elections</h2>
+            <div id="elections-list" class="space-y-4">
+              <!-- Elections list will be dynamically inserted here -->
+            </div>
+          </div>
+
+          <!-- Results Management Card -->
+          <div class="card">
+            <h2 class="text-2xl font-bold mb-4">🏆 Results Management</h2>
+            <div class="mb-4">
+              <select id="election-select" class="input-field">
+                <option value="">
+                  Select an election to manage results...
+                </option>
+              </select>
+            </div>
+            <div id="results-management" class="space-y-4">
+              <p class="text-gray-500 text-center py-8">
+                Select an election to manage its results
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== API LOG ====== -->
+      <div class="card mt-8">
+        <h2 class="text-2xl font-bold mb-4">API Log</h2>
+        <pre
+          id="output"
+          class="bg-gray-900 p-4 rounded-md h-40 overflow-y-auto font-mono text-sm"
+        ></pre>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = "http://localhost:8000/api";
+
+      // --- DOM ELEMENTS ---
+      const outputLog = document.getElementById("output");
+      const partiesListDiv = document.getElementById("parties-list");
+      const electionsListDiv = document.getElementById("elections-list");
+      const partiesForElectionDiv = document.getElementById(
+        "parties-for-election"
+      );
+      const createPartyForm = document.getElementById("create-party-form");
+      const createElectionForm = document.getElementById(
+        "create-election-form"
+      );
+      const electionSelect = document.getElementById("election-select");
+      const resultsManagementDiv =
+        document.getElementById("results-management");
+
+      // --- STATE ---
+      let state = {
+        parties: [],
+        elections: [],
+        selectedElectionStats: null,
+      };
+
+      // --- HELPER FUNCTIONS ---
+      function log(message, isError = false) {
+        const timestamp = new Date().toLocaleTimeString();
+        const color = isError ? "text-red-400" : "text-green-400";
+        outputLog.innerHTML =
+          `<span class="${color}">[${timestamp}] ${message}</span>\n` +
+          outputLog.innerHTML;
+      }
+
+      async function apiCall(endpoint, method = "GET", body = null) {
+        const options = {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: body ? JSON.stringify(body) : null,
+        };
+
+        log(`Requesting ${method} ${endpoint}...`);
+        try {
+          const response = await fetch(API_URL + endpoint, options);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "API call failed");
+          log(
+            `Success from ${method} ${endpoint}: ${JSON.stringify(
+              data,
+              null,
+              2
+            )}`
+          );
+          return data;
+        } catch (error) {
+          log(`Error from ${method} ${endpoint}: ${error.message}`, true);
+          throw error;
+        }
+      }
+
+      // --- RENDER FUNCTIONS ---
+      function renderParties() {
+        partiesListDiv.innerHTML = "";
+        partiesForElectionDiv.innerHTML = "";
+
+        if (state.parties.length === 0) {
+          const message =
+            '<p class="text-gray-500">No parties found. Please create one.</p>';
+          partiesListDiv.innerHTML = message;
+          partiesForElectionDiv.innerHTML = message;
+          return;
+        }
+
+        state.parties.forEach((party) => {
+          // Render for the main list
+          const partyItem = document.createElement("div");
+          partyItem.className =
+            "p-3 bg-gray-700 rounded-md flex items-center gap-4";
+          partyItem.innerHTML = `
+                <img src="${party.symbolUrl}" alt="${party.name} symbol" class="w-8 h-8 rounded-full bg-white object-contain p-1">
+                <span class="font-medium">${party.name}</span>
+                <span class="text-xs text-gray-400 ml-auto">${party.id}</span>
+            `;
+          partiesListDiv.appendChild(partyItem);
+
+          // Render as a checkbox for the election form
+          const checkboxItem = document.createElement("div");
+          checkboxItem.className = "party-checkbox";
+          checkboxItem.innerHTML = `
+                <input type="checkbox" id="party-select-${party.id}" value="${party.id}" class="w-4 h-4 text-blue-600 bg-gray-900 border-gray-600 rounded focus:ring-blue-500">
+                <label for="party-select-${party.id}" class="ml-2 text-sm text-gray-300">${party.name}</label>
+            `;
+          partiesForElectionDiv.appendChild(checkboxItem);
+        });
+      }
+
+      function renderElections() {
+        electionsListDiv.innerHTML = "";
+        if (state.elections.length === 0) {
+          electionsListDiv.innerHTML =
+            '<p class="text-gray-500">No elections found. Please create one.</p>';
+          return;
+        }
+
+        state.elections.forEach((election) => {
+          const electionItem = document.createElement("div");
+          electionItem.className = "p-4 bg-gray-700 rounded-md relative";
+
+          const partyNames =
+            election.parties.map((p) => p.name).join(", ") ||
+            "No parties assigned";
+
+          electionItem.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg">${election.name}</h3>
+                        <p class="text-sm text-gray-400">
+                            Runs from ${new Date(
+                              election.startDate
+                            ).toLocaleString()} to ${new Date(
+            election.endDate
+          ).toLocaleString()}
+                        </p>
+                        <p class="text-sm text-gray-300 mt-2"><b>Parties:</b> ${partyNames}</p>
+                        <p class="text-xs text-gray-500 mt-1">ID: ${
+                          election.id
+                        }</p>
+                    </div>
+                    <button
+                        class="delete-election-btn bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition"
+                        data-election-id="${election.id}"
+                        data-election-name="${election.name}"
+                    >
+                        Delete
+                    </button>
+                </div>
+            `;
+          electionsListDiv.appendChild(electionItem);
+        });
+
+        // Update election select dropdown
+        renderElectionSelect();
+      }
+
+      function renderElectionSelect() {
+        electionSelect.innerHTML =
+          '<option value="">Select an election to manage results...</option>';
+        state.elections.forEach((election) => {
+          const option = document.createElement("option");
+          option.value = election.id;
+          option.textContent = election.name;
+          electionSelect.appendChild(option);
+        });
+      }
+
+      async function renderResultsManagement(electionId) {
+        if (!electionId) {
+          resultsManagementDiv.innerHTML =
+            '<p class="text-gray-500 text-center py-8">Select an election to manage its results</p>';
+          return;
+        }
+
+        try {
+          const stats = await apiCall(`/admin/elections/${electionId}/stats`);
+          state.selectedElectionStats = stats;
+
+          const isCompleted = new Date() > new Date(stats.election.endDate);
+          const hasResults = stats.results && stats.results.length > 0;
+          const isPublished = stats.status?.resultsPublished || false;
+
+          let html = `
+            <div class="bg-gray-900 p-4 rounded-lg mb-4">
+              <h3 class="font-bold text-lg mb-2">${stats.election.name}</h3>
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p><span class="text-gray-400">Status:</span> ${getElectionStatusText(
+                    stats.status?.status || "UPCOMING"
+                  )}</p>
+                  <p><span class="text-gray-400">Total Registered Voters:</span> ${
+                    stats.statistics.totalRegisteredVoters
+                  }</p>
+                </div>
+                <div>
+                  <p><span class="text-gray-400">Voters Who Voted:</span> ${
+                    stats.statistics.votersWhoVoted
+                  }</p>
+                  <p><span class="text-gray-400">Turnout:</span> ${
+                    stats.statistics.turnoutPercentage
+                  }%</p>
+                </div>
+              </div>
+            </div>
+          `;
+
+          if (isCompleted) {
+            html += `
+              <div class="space-y-4">
+                <div class="flex gap-2">
+                  <button id="calculate-results-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition">
+                    ${hasResults ? "Recalculate Results" : "Calculate Results"}
+                  </button>
+                  ${
+                    hasResults
+                      ? `
+                    <button id="publish-results-btn" class="bg-${
+                      isPublished ? "yellow" : "green"
+                    }-600 hover:bg-${
+                          isPublished ? "yellow" : "green"
+                        }-700 text-white px-4 py-2 rounded transition">
+                      ${isPublished ? "Unpublish Results" : "Publish Results"}
+                    </button>
+                  `
+                      : ""
+                  }
+                </div>
+              </div>
+            `;
+
+            if (hasResults) {
+              html += `
+                <div class="mt-6">
+                  <h4 class="font-bold mb-3">📊 Results Preview</h4>
+                  <div class="space-y-2">
+              `;
+
+              // Check for draw/tie
+              const maxVotes = Math.max(
+                ...stats.results.map((r) => r.voteCount)
+              );
+              const winnersCount = stats.results.filter(
+                (r) => r.voteCount === maxVotes && r.voteCount > 0
+              ).length;
+              const isDraw = winnersCount > 1 && maxVotes > 0;
+
+              if (isDraw) {
+                html += `
+                  <div class="mb-4 p-3 bg-blue-700 rounded-lg text-center">
+                    <div class="text-xl font-bold text-white">🤝 It's a Draw!</div>
+                    <div class="text-blue-200">${winnersCount} parties tied with ${maxVotes} votes each</div>
+                  </div>
+                `;
+              }
+
+              stats.results.forEach((result, index) => {
+                const isWinner =
+                  !isDraw &&
+                  result.voteCount === maxVotes &&
+                  result.voteCount > 0;
+                const isDrawParticipant =
+                  isDraw && result.voteCount === maxVotes;
+                html += `
+                  <div class="flex justify-between items-center p-3 bg-gray-800 rounded ${
+                    isWinner
+                      ? "border-2 border-gold ring-2 ring-yellow-400"
+                      : isDrawParticipant
+                      ? "border-2 border-blue-400 ring-2 ring-blue-300"
+                      : ""
+                  }">
+                    <div class="flex items-center gap-3">
+                      ${isWinner ? "🏆" : isDrawParticipant ? "🤝" : ""}
+                      <img src="${
+                        result.party.symbolUrl
+                      }" class="w-8 h-8 rounded bg-white p-1" alt="${
+                  result.party.name
+                }">
+                      <span class="font-medium">${result.party.name}</span>
+                    </div>
+                    <div class="text-right">
+                      <div class="font-bold">${result.voteCount} votes</div>
+                      <div class="text-sm text-gray-400">${
+                        result.percentage
+                      }%</div>
+                    </div>
+                  </div>
+                `;
+              });
+
+              html += `
+                  </div>
+                  <div class="mt-4 text-center">
+                    <p class="text-sm text-gray-400">
+                      Results ${
+                        isPublished
+                          ? "are published and visible to public"
+                          : "are calculated but not yet published"
+                      }
+                    </p>
+                  </div>
+                </div>
+              `;
+            }
+          } else {
+            html +=
+              '<p class="text-yellow-400 text-center py-4">⏳ Election is still ongoing. Results can only be calculated after election ends.</p>';
+          }
+
+          resultsManagementDiv.innerHTML = html;
+
+          // Add event listeners for the new buttons
+          const calculateBtn = document.getElementById("calculate-results-btn");
+          const publishBtn = document.getElementById("publish-results-btn");
+
+          if (calculateBtn) {
+            calculateBtn.addEventListener("click", () =>
+              calculateResults(electionId)
+            );
+          }
+
+          if (publishBtn) {
+            publishBtn.addEventListener("click", () =>
+              togglePublishResults(electionId, !isPublished)
+            );
+          }
+        } catch (error) {
+          resultsManagementDiv.innerHTML =
+            '<p class="text-red-400 text-center py-4">❌ Error loading election statistics</p>';
+          log(`Error loading election stats: ${error.message}`, true);
+        }
+      }
+
+      function getElectionStatusText(status) {
+        const statusMap = {
+          UPCOMING: "🔜 Upcoming",
+          ACTIVE: "🔴 Active",
+          COMPLETED: "✅ Completed",
+          RESULTS_PUBLISHED: "📊 Results Published",
+        };
+        return statusMap[status] || status;
+      }
+
+      async function calculateResults(electionId) {
+        try {
+          log("Calculating election results...");
+          const result = await apiCall(
+            `/admin/elections/${electionId}/calculate-results`,
+            "POST"
+          );
+          log(
+            `Results calculated successfully. Total votes: ${result.totalVotes}`
+          );
+          await renderResultsManagement(electionId); // Refresh the display
+        } catch (error) {
+          log(`Failed to calculate results: ${error.message}`, true);
+        }
+      }
+
+      async function togglePublishResults(electionId, publish) {
+        try {
+          const action = publish ? "Publishing" : "Unpublishing";
+          log(`${action} election results...`);
+          await apiCall(
+            `/admin/elections/${electionId}/publish-results`,
+            "POST",
+            { publish }
+          );
+          log(`Results ${publish ? "published" : "unpublished"} successfully`);
+          await renderResultsManagement(electionId); // Refresh the display
+        } catch (error) {
+          log(
+            `Failed to ${publish ? "publish" : "unpublish"} results: ${
+              error.message
+            }`,
+            true
+          );
+        }
+      }
+
+      // --- DATA FETCHING & INITIALIZATION ---
+      async function fetchData() {
+        try {
+          // CORRECTED LOGIC: Fetch parties and elections from their dedicated, independent endpoints.
+          const [partiesData, electionsData] = await Promise.all([
+            apiCall("/public/parties"),
+            apiCall("/public/elections"),
+          ]);
+
+          state.parties = partiesData;
+          state.elections = electionsData;
+
+          renderParties();
+          renderElections();
+        } catch (error) {
+          log(
+            "Failed to fetch initial data. Make sure the backend server is running and the CORS middleware is enabled.",
+            true
+          );
+        }
+      }
+
+      // --- EVENT HANDLERS ---
+      createPartyForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("party-name").value;
+        const symbolUrl = document.getElementById("party-symbol").value;
+        try {
+          await apiCall("/admin/parties", "POST", { name, symbolUrl });
+          createPartyForm.reset();
+          fetchData(); // Refresh all data
+        } catch (error) {}
+      });
+
+      createElectionForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("election-name").value;
+        const startDate = document.getElementById("election-start").value;
+        const endDate = document.getElementById("election-end").value;
+
+        const selectedPartyIds = [];
+        document
+          .querySelectorAll(
+            '#parties-for-election input[type="checkbox"]:checked'
+          )
+          .forEach((checkbox) => {
+            selectedPartyIds.push(checkbox.value);
+          });
+
+        if (selectedPartyIds.length === 0) {
+          log("Please select at least one party for the election.", true);
+          return;
+        }
+
+        try {
+          await apiCall("/admin/elections", "POST", {
+            name,
+            startDate,
+            endDate,
+            partyIds: selectedPartyIds,
+          });
+          createElectionForm.reset();
+          fetchData(); // Refresh all data
+        } catch (error) {}
+      });
+
+      // Handle delete election button clicks
+      document.addEventListener("click", async (e) => {
+        if (e.target.classList.contains("delete-election-btn")) {
+          const electionId = e.target.getAttribute("data-election-id");
+          const electionName = e.target.getAttribute("data-election-name");
+
+          // Confirm deletion
+          if (
+            confirm(
+              `Are you sure you want to delete the election "${electionName}"? This will also delete all votes and receipts associated with this election. This action cannot be undone.`
+            )
+          ) {
+            try {
+              await apiCall(`/admin/elections/${electionId}`, "DELETE");
+              log(`Election "${electionName}" deleted successfully.`);
+              fetchData(); // Refresh all data
+            } catch (error) {
+              log(`Failed to delete election "${electionName}".`, true);
+            }
+          }
+        }
+      });
+
+      // Handle election selection for results management
+      electionSelect.addEventListener("change", (e) => {
+        renderResultsManagement(e.target.value);
+      });
+
+      // --- INITIAL LOAD ---
+      window.onload = fetchData;
+    </script>
+  </body>
+</html>

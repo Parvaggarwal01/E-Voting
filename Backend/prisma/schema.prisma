@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(VOTER)
+  createdAt    DateTime @default(now())
+}
+
+model Voter {
+  id               String                @id @default(cuid())
+  voterId          String?               @unique
+  email            String                @unique
+  passwordHash     String
+  encryptedPassword String?
+  name             String?
+  realEmail        String?
+  phone            String?
+  address          String?
+  dateOfBirth      DateTime?
+  aadhaarNumber    String?               @unique
+  isVerified       Boolean?              @default(false)
+  createdAt        DateTime?             @default(now())
+  electionStatuses VoterElectionStatus[]
+}
+
+model ECCommissioner {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+}
+
+model Election {
+  id            String                @id @default(cuid())
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  results       ElectionResult[]
+  status        ElectionStatus?
+  voterStatuses VoterElectionStatus[]
+  parties       Party[]               @relation("ElectionToParty")
+}
+
+model Party {
+  id           String           @id @default(cuid())
+  name         String           @unique
+  symbolUrl    String
+  email        String           @unique
+  passwordHash String
+  isVerified   Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  results      ElectionResult[]
+  elections    Election[]       @relation("ElectionToParty")
+}
+
+model VoterElectionStatus {
+  id         String   @id @default(cuid())
+  voterId    String
+  electionId String
+  election   Election @relation(fields: [electionId], references: [id])
+  voter      Voter    @relation(fields: [voterId], references: [id])
+
+  @@unique([voterId, electionId])
+}
+
+model CentralBallotBox {
+  id                Int      @id @default(autoincrement())
+  voteMessage       String
+  voteSignature     String
+  previousEntryHash String?
+  currentEntryHash  String   @unique
+  createdAt         DateTime @default(now())
+  electionId        String
+}
+
+model Receipt {
+  id          String   @id @default(cuid())
+  receiptCode String   @unique
+  electionId  String
+  createdAt   DateTime @default(now())
+}
+
+model ElectionResult {
+  id          String    @id @default(cuid())
+  electionId  String
+  partyId     String
+  voteCount   Int       @default(0)
+  percentage  Float     @default(0.0)
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  election    Election  @relation(fields: [electionId], references: [id])
+  party       Party     @relation(fields: [partyId], references: [id])
+
+  @@unique([electionId, partyId])
+}
+
+model ElectionStatus {
+  id               String    @id @default(cuid())
+  electionId       String    @unique
+  status           String    @default("UPCOMING")
+  totalVotes       Int       @default(0)
+  resultsPublished Boolean   @default(false)
+  publishedAt      DateTime?
+  election         Election  @relation(fields: [electionId], references: [id])
+}
+
+enum Role {
+  VOTER
+  EC
+  PARTY
+}
