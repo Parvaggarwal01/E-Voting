@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../services/api";
+import { blindSignature } from "../../utils/cryptoBlinding";
 
 function VotingPage() {
   const [elections, setElections] = useState([]);
@@ -12,7 +13,16 @@ function VotingPage() {
 
   useEffect(() => {
     fetchElections();
+    // Initialize crypto system
+    initializeCrypto();
   }, []);
+
+  const initializeCrypto = async () => {
+    const initialized = await blindSignature.initialize();
+    if (!initialized) {
+      console.error("Failed to initialize cryptographic system");
+    }
+  };
 
   const fetchElections = async () => {
     try {
@@ -36,35 +46,48 @@ function VotingPage() {
 
     setVoting(true);
     try {
-      console.log("🗳️ Starting vote process...");
+      console.log("🗳️ Starting BLIND vote process...");
       console.log("Selected Election:", selectedElection.id);
-      console.log("Selected Party:", selectedParty);
+      console.log("Selected Party (will be hidden from EC):", selectedParty);
 
-      // Step 1: Blind the message (simplified - party ID)
-      const blindedMessage = btoa(
-        JSON.stringify({
-          message: selectedParty,
-          timestamp: Date.now(),
-          randomPart: Math.random().toString(36).substring(2, 15),
-        })
-      );
+      // Step 1: Create vote message with randomness
+      const voteMessage = JSON.stringify({
+        partyId: selectedParty,
+        electionId: selectedElection.id,
+        timestamp: Date.now(),
+        nonce: Math.random().toString(36).substring(2, 15),
+      });
 
-      console.log("📝 Requesting signature...");
-      // Step 2: Request blind signature
+      // Step 2: BLIND the vote message using RSA blinding
+      console.log("🔐 Blinding vote message (hiding from EC)...");
+      const blindedMessage = blindSignature.blindMessage(voteMessage);
+      
+      console.log("📝 Requesting blind signature from EC...");
+      // Step 3: Request blind signature (EC cannot see vote content)
       const signatureResponse = await api.post("/vote/request-signature", {
         blindedMessage,
         electionId: selectedElection.id,
       });
-      console.log("✅ Signature received:", signatureResponse.data);
+      console.log("✅ Blind signature received from EC");
 
-      console.log("📤 Submitting vote...");
-      // Step 3: Submit the vote
+      // Step 4: UNBLIND the signature
+      console.log("🔓 Unblinding signature...");
+      const unblindedSignature = blindSignature.unblindSignature(
+        signatureResponse.data.signedBlindedMessage
+      );
+
+      console.log("📤 Submitting anonymous vote...");
+      // Step 5: Submit the vote with unblinded signature
+      // Use the same message that was blinded for verification
       const voteResponse = await api.post("/vote/submit", {
-        voteMessage: selectedParty,
-        signature: signatureResponse.data.signedBlindedMessage,
+        voteMessage: voteMessage, // Full message for proper verification
+        signature: unblindedSignature,
         electionId: selectedElection.id,
       });
-      console.log("✅ Vote response:", voteResponse.data);
+      console.log("✅ Anonymous vote cast successfully!");
+
+      // Clear sensitive cryptographic data
+      blindSignature.clear();
 
       // Check if receipt exists in response
       if (
@@ -92,7 +115,9 @@ function VotingPage() {
       console.log("🔄 Navigating to receipt view...");
       navigate("/voter/receipt-view");
     } catch (error) {
-      console.error("❌ Vote casting error:", error);
+      console.error("❌ Blind vote casting error:", error);
+      // Clear sensitive data even on error
+      blindSignature.clear();
       alert(
         "Error casting vote: " + (error.response?.data?.error || error.message)
       );

@@ -1,4 +1,5 @@
 const voteService = require("../services/vote.service");
+const cryptoHelpers = require("../utils/crypto.helpers");
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
@@ -16,6 +17,15 @@ exports.requestSignature = async (req, res) => {
     res.status(200).json({ signedBlindedMessage });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+exports.getPublicKey = async (req, res) => {
+  try {
+    const publicKeyInfo = cryptoHelpers.getPublicKeyInfo();
+    res.status(200).json(publicKeyInfo);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get public key" });
   }
 };
 

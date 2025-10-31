@@ -8,6 +8,12 @@ exports.issueBlindSignature = async ({
   electionId,
   blindedMessage,
 }) => {
+  console.log("🔐 Processing blind signature request...");
+  console.log("Voter ID:", voterId);
+  console.log("Election ID:", electionId);
+  console.log("Blinded message (EC cannot see vote content):", blindedMessage.substring(0, 50) + "...");
+
+  // Check if voter has already requested a signature for this election
   const existingVoteStatus = await prisma.voterElectionStatus.findUnique({
     where: { voterId_electionId: { voterId, electionId } },
   });
@@ -18,34 +24,51 @@ exports.issueBlindSignature = async ({
     );
   }
 
+  // CRITICAL: Sign the blinded message WITHOUT knowing its content
+  // The EC cannot see what party the voter is voting for
   const signedBlindedVote = cryptoHelpers.signBlindedMessage({
     blindedMessage,
   });
 
+  // Record that this voter has used their signature for this election
+  // This prevents double voting but doesn't link the vote content to the voter
   await prisma.voterElectionStatus.create({
     data: { voterId, electionId },
   });
 
+  console.log("✅ Blind signature issued (vote content remains private)");
   return signedBlindedVote;
 };
 
 exports.castVote = async ({ voteMessage, signature, electionId }) => {
-  console.log("🔍 Verifying vote signature...");
+  console.log("🔍 Verifying anonymous vote signature...");
   console.log("Vote Message:", voteMessage);
-  console.log("Signature:", signature);
   console.log("Signature Type:", typeof signature);
   console.log("Signature Length:", signature ? signature.length : 0);
 
+  // Verify the unblinded signature against the original message
   const isValid = cryptoHelpers.verifySignature({
     signature: signature,
     originalMessage: voteMessage,
   });
 
-  console.log("Verification Result:", isValid);
+  console.log("✅ Signature verification result:", isValid);
 
   if (!isValid) {
     throw new Error("Invalid vote signature. The vote is rejected.");
   }
+
+  // Extract party ID from the vote message for ballot box storage
+  let partyId;
+  try {
+    const parsedMessage = JSON.parse(voteMessage);
+    partyId = parsedMessage.partyId;
+  } catch (error) {
+    // Fallback: if it's just a party ID string
+    partyId = voteMessage;
+  }
+
+  console.log("📊 Recording vote for party:", partyId);
 
   const lastEntry = await prisma.centralBallotBox.findFirst({
     orderBy: { createdAt: "desc" },
@@ -53,7 +76,7 @@ exports.castVote = async ({ voteMessage, signature, electionId }) => {
   const previousEntryHash = lastEntry ? lastEntry.currentEntryHash : null;
 
   const newEntryData = {
-    voteMessage,
+    voteMessage: partyId, // Store only party ID for counting
     voteSignature: signature,
     previousEntryHash,
   };
@@ -61,7 +84,7 @@ exports.castVote = async ({ voteMessage, signature, electionId }) => {
 
   await prisma.centralBallotBox.create({
     data: {
-      voteMessage,
+      voteMessage: partyId, // Store only party ID, not full message
       voteSignature: signature,
       previousEntryHash,
       currentEntryHash,
