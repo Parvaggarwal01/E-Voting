@@ -15,7 +15,24 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+const requireRole = (role) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required." });
+    }
+
+    if (req.user.role !== role) {
+      return res.status(403).json({
+        error: `Access denied. ${role} role required.`,
+      });
+    }
+
+    next();
+  };
+};
+
 // Export both names for compatibility
 module.exports = authenticateToken;
 module.exports.authenticateToken = authenticateToken;
 module.exports.authMiddleware = authenticateToken;
+module.exports.requireRole = requireRole;

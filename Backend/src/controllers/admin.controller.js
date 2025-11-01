@@ -47,6 +47,15 @@ exports.createParty = async (req, res) => {
       },
     });
 
+    // Also create a corresponding User entry for authentication
+    await prisma.user.create({
+      data: {
+        username: partyEmail, // Use email as username
+        passwordHash,
+        role: "PARTY",
+      },
+    });
+
     // Return party info with credentials
     res.status(201).json({
       ...newParty,

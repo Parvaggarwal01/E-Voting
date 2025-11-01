@@ -6,6 +6,7 @@ import Login from "./components/Auth/Login";
 import ECPortal from "./components/EC/ECPortal";
 import VoterPortal from "./components/Voter/VoterPortal";
 import PartyPortal from "./components/Party/PartyPortal";
+import ManifestoChatbot from "./components/Voter/ManifestoChatbot";
 
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }) {
@@ -97,6 +98,16 @@ function AppContent() {
           element={
             <ProtectedRoute requiredRole="VOTER">
               <VoterPortal />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Full-screen chatbot route */}
+        <Route
+          path="/manifesto-chat"
+          element={
+            <ProtectedRoute requiredRole="VOTER">
+              <ManifestoChatbot />
             </ProtectedRoute>
           }
         />

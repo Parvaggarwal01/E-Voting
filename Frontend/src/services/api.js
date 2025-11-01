@@ -15,32 +15,71 @@ class ApiService {
 
     const config = {
       headers: {
-        "Content-Type": "application/json",
         ...this.defaults.headers.common,
         ...options.headers,
       },
       ...options,
     };
 
+    // Only set Content-Type for non-FormData requests
+    if (!(options.body instanceof FormData)) {
+      config.headers["Content-Type"] = "application/json";
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Set longer timeout for chat requests (2 minutes)
+    const timeout = endpoint.includes("/chat") ? 120000 : 30000;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    config.signal = controller.signal;
+
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        let errorMessage;
+        const contentType = response.headers.get("content-type");
+
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage =
+            errorData.error || `HTTP error! status: ${response.status}`;
+        } else {
+          // For HTML or text responses, try to extract error message
+          const text = await response.text();
+          // Try to extract error from HTML or use the full text
+          const match = text.match(/Error: ([^<\n]+)/);
+          errorMessage = match
+            ? match[1]
+            : `HTTP error! status: ${response.status}`;
+        }
+
+        throw new Error(errorMessage);
       }
 
+      const data = await response.json();
+      clearTimeout(timeoutId);
       return { data };
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error("API request failed:", error);
+
+      // Handle specific timeout/abort error
+      let errorMessage = error.message;
+      if (error.name === "AbortError") {
+        errorMessage = `Request timed out after ${
+          timeout / 1000
+        } seconds. The AI service might be loading, please try again.`;
+      }
+
       // Throw error in axios-like format
-      const axiosError = new Error(error.message);
+      const axiosError = new Error(errorMessage);
       axiosError.response = {
-        data: { error: error.message },
+        data: { error: errorMessage },
       };
       throw axiosError;
     }
@@ -54,7 +93,7 @@ class ApiService {
   async post(endpoint, data) {
     return this.request(endpoint, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: data instanceof FormData ? data : JSON.stringify(data),
     });
   }
 

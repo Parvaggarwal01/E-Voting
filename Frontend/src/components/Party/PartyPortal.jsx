@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import PartyDashboard from "./PartyDashboard";
 import ManifestoUpload from "./ManifestoUpload";
+import ManifestoManager from "./ManifestoManager";
 import PartyElections from "./PartyElections";
 import PartySettings from "./PartySettings";
 import PartySidebar from "./PartySidebar";
@@ -25,7 +26,7 @@ const PartyPortal = () => {
           <Routes>
             <Route index element={<PartyDashboard />} />
             <Route path="dashboard" element={<PartyDashboard />} />
-            <Route path="manifesto" element={<ManifestoUpload />} />
+            <Route path="manifesto" element={<ManifestoManager />} />
             <Route path="elections" element={<PartyElections />} />
             <Route path="settings" element={<PartySettings />} />
             <Route

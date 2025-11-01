@@ -5,7 +5,7 @@ import VotingPage from "./VotingPage";
 import ResultsPage from "./ResultsPage";
 import ReceiptPage from "./ReceiptPage";
 import OneTimeReceiptView from "./OneTimeReceiptView";
-import VoterChatbot from "./VoterChatbot";
+import ManifestoChatbot from "./ManifestoChatbot";
 
 function VoterPortal() {
   return (
@@ -19,12 +19,10 @@ function VoterPortal() {
             <Route path="results" element={<ResultsPage />} />
             <Route path="receipts" element={<ReceiptPage />} />
             <Route path="receipt-view" element={<OneTimeReceiptView />} />
+            <Route path="chat" element={<ManifestoChatbot />} />
           </Routes>
         </main>
       </div>
-
-      {/* AI Chatbot - Available on all voter pages */}
-      <VoterChatbot />
     </div>
   );
 }

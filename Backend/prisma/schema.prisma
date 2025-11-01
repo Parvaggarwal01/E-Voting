@@ -62,6 +62,24 @@ model Party {
   createdAt    DateTime         @default(now())
   results      ElectionResult[]
   elections    Election[]       @relation("ElectionToParty")
+  manifestos   Manifesto[]
+}
+
+model Manifesto {
+  id            String   @id @default(cuid())
+  partyId       String
+  party         Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  fileName      String
+  filePath      String
+  fileSize      Int
+  mimeType      String
+  uploadedAt    DateTime @default(now())
+  extractedText String?  @db.Text
+  processed     Boolean  @default(false)
+
+  @@map("manifestos")
 }
 
 model VoterElectionStatus {
