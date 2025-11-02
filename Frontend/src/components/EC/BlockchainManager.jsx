@@ -202,12 +202,12 @@ function BlockchainManager() {
                 </div>
               </div>
 
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-sm text-gray-600 mb-2">Contract Details</h3>
+              <div className="p-4 bg-black rounded-lg">
+                <h3 className="text-sm text-black mb-2">Contract Details</h3>
                 <div className="space-y-1 text-sm">
                   <p>
                     <strong>Address:</strong>{" "}
-                    <code className="bg-gray-200 px-1 rounded">
+                    <code className=" px-1 rounded">
                       {realBlockchainStats.contractAddress}
                     </code>
                   </p>
@@ -221,7 +221,7 @@ function BlockchainManager() {
                   </p>
                   <p>
                     <strong>Admin:</strong>{" "}
-                    <code className="bg-gray-200 px-1 rounded">
+                    <code className=" px-1 rounded">
                       {realBlockchainStats.adminAddress}
                     </code>
                   </p>
