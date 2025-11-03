@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  console.log("Deploying contracts to Ganache...");
+  console.log("Deploying contracts...");
 
   // 1. Deploy the VoterRegistry first
   const voterRegistry = await hre.ethers.deployContract("VoterRegistry");
@@ -10,7 +10,7 @@ async function main() {
     `✅ VoterRegistry deployed to: ${voterRegistry.target}`
   );
 
-  // FOR YOUR HACKATHON, JUST HARDCODE THEM:
+  // 2. Define your parties (Match these with your database/frontend)
   const hardcodedPartyIds = ["bjp@party.gov", "congress@party.gov", "aap@party.gov"];
   console.log(`Configuring with parties: ${hardcodedPartyIds.join(", ")}`);
 

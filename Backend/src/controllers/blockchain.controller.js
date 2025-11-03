@@ -6,10 +6,25 @@ exports.getBlockchainStats = async (req, res) => {
   try {
     console.log("📊 Fetching blockchain statistics...");
 
+    // Use environment variable for RPC URL for security
+    const rpcUrl = process.env.SEPOLIA_RPC_URL;
+    if (!rpcUrl) {
+      throw new Error("SEPOLIA_RPC_URL environment variable not set");
+    }
+
     // Connect to blockchain
-    const provider = new ethers.JsonRpcProvider(
-      blockchainConfig.networkConfig.rpcUrl
-    );
+    console.log("🔗 Connecting to RPC:", rpcUrl.substring(0, 50) + "...");
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+    // Test the connection first
+    try {
+      await provider.getNetwork();
+      console.log("✅ RPC connection successful");
+    } catch (networkError) {
+      console.error("❌ RPC connection failed:", networkError.message);
+      throw new Error("Failed to connect to Sepolia network");
+    }
+
     const contract = new ethers.Contract(
       blockchainConfig.contractAddress,
       blockchainConfig.contractABI,
@@ -63,9 +78,13 @@ exports.getBlockchainVoters = async (req, res) => {
 
     console.log("👥 Fetching blockchain voters...");
 
-    const provider = new ethers.JsonRpcProvider(
-      blockchainConfig.networkConfig.rpcUrl
-    );
+    // Use environment variable for RPC URL
+    const rpcUrl = process.env.SEPOLIA_RPC_URL;
+    if (!rpcUrl) {
+      throw new Error("SEPOLIA_RPC_URL environment variable not set");
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
     const contract = new ethers.Contract(
       blockchainConfig.contractAddress,
       blockchainConfig.contractABI,
@@ -146,9 +165,13 @@ exports.getBlockchainVotes = async (req, res) => {
 
     console.log("🗳️ Fetching blockchain votes...");
 
-    const provider = new ethers.JsonRpcProvider(
-      blockchainConfig.networkConfig.rpcUrl
-    );
+    // Use environment variable for RPC URL
+    const rpcUrl = process.env.SEPOLIA_RPC_URL;
+    if (!rpcUrl) {
+      throw new Error("SEPOLIA_RPC_URL environment variable not set");
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
     const contract = new ethers.Contract(
       blockchainConfig.contractAddress,
       blockchainConfig.contractABI,

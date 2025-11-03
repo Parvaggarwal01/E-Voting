@@ -4,7 +4,6 @@ import blockchainConfig from "../config/blockchain.json";
 // Contract configuration from generated config
 const CONTRACT_ADDRESS = blockchainConfig.contractAddress;
 const CONTRACT_ABI = blockchainConfig.contractABI;
-const GANACHE_RPC = blockchainConfig.networkConfig.rpcUrl;
 const CHAIN_ID = blockchainConfig.networkConfig.chainId;
 
 // Legacy ABI - replaced with generated config above
@@ -386,11 +385,13 @@ class BlockchainService {
           this.signer
         );
 
-        // Check if connected to Ganache
+        // Check if connected to correct network
         const network = await this.provider.getNetwork();
         if (network.chainId !== BigInt(CHAIN_ID)) {
+          const networkName =
+            CHAIN_ID === 11155111 ? "Sepolia Testnet" : "Ganache Local";
           throw new Error(
-            `Please switch to Ganache network (Chain ID: ${CHAIN_ID})`
+            `Please switch to ${networkName} (Chain ID: ${CHAIN_ID}). Currently connected to Chain ID: ${network.chainId}`
           );
         }
 
@@ -423,8 +424,8 @@ class BlockchainService {
 
       console.log("📝 Registering voter on blockchain...");
 
-      // Encrypt sensitive data
-      const aadhaarHash = ethers.keccak256(
+      // Hash Aadhaar for privacy (as string, not bytes32)
+      const aadhaarHashString = ethers.keccak256(
         ethers.toUtf8Bytes(voterData.aadhaarNumber)
       );
       const encryptedName = btoa(voterData.name); // Simple base64 encoding for demo
@@ -433,7 +434,7 @@ class BlockchainService {
       // Call smart contract function
       const tx = await this.contract.registerVoter(
         voterData.walletAddress,
-        aadhaarHash,
+        aadhaarHashString,
         encryptedName,
         encryptedEmail
       );
@@ -448,7 +449,7 @@ class BlockchainService {
         txHash: receipt.hash,
         blockNumber: receipt.blockNumber,
         gasUsed: receipt.gasUsed.toString(),
-        aadhaarHash: aadhaarHash,
+        aadhaarHash: aadhaarHashString,
         timestamp: Date.now(),
       };
     } catch (error) {
@@ -483,20 +484,17 @@ class BlockchainService {
         ethers.toUtf8Bytes(voteData.signature || "demo_signature")
       );
 
-      // Convert electionId to number and call smart contract function
-      const electionId = parseInt(voteData.electionId) || 1; // Default to 1 if not valid
-
       console.log("🔍 Vote data:", {
-        electionId: electionId,
+        electionId: voteData.electionId,
         partyId: voteData.partyId,
-        originalElectionId: voteData.electionId,
+        voteHash: voteHash,
       });
 
       const tx = await this.contract.castVote(
-        electionId,
         voteHash,
-        blindSignature,
-        voteData.partyId // Added partyId parameter
+        voteData.electionId, // String electionId (UUID)
+        voteData.partyId, // String partyId (UUID)
+        blindSignature
       );
 
       console.log("⏳ Waiting for vote confirmation...");
@@ -577,8 +575,8 @@ class BlockchainService {
         throw new Error("Blockchain not connected");
       }
 
-      const totalVoters = await this.contract.getTotalVoters();
-      const totalVotes = await this.contract.getTotalVotes();
+      const totalVoters = await this.contract.voterCount();
+      const totalVotes = await this.contract.voteCount();
 
       return {
         totalVoters: totalVoters.toString(),
@@ -593,34 +591,21 @@ class BlockchainService {
   }
 
   // Create election on blockchain (admin only)
+  // Note: VotingSystem contract doesn't have createElection function
+  // Elections are managed in the database only
   async createElection(electionData) {
     try {
-      if (!this.isConnected) {
-        throw new Error("Blockchain not connected");
-      }
+      console.log("🏛️ Elections are managed in database, not on blockchain");
 
-      console.log("🏛️ Creating election on blockchain...");
-
-      const tx = await this.contract.createElection(
-        electionData.id,
-        electionData.name,
-        Math.floor(new Date(electionData.startDate).getTime() / 1000),
-        Math.floor(new Date(electionData.endDate).getTime() / 1000),
-        electionData.parties.map((p) => p.id), // Party IDs
-        electionData.parties.map((p) => p.name) // Party Names
-      );
-
-      const receipt = await tx.wait();
-
-      console.log("✅ Election created on blockchain:", receipt.hash);
-
+      // Return success since elections are database-only
       return {
         success: true,
-        txHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
+        message: "Elections are managed in database",
+        txHash: null,
+        blockNumber: null,
       };
     } catch (error) {
-      console.error("❌ Blockchain election creation failed:", error);
+      console.error("❌ Election creation note:", error);
       throw error;
     }
   }

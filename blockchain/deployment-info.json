@@ -1,8 +1,10 @@
 {
-  "contractName": "VoteStorage",
-  "contractAddress": "0x13D1775c859e86D56935A7ba8c59f8FAbFA7c755",
-  "deployer": "0x83eA8bad3CC592B6c190DB5230B237e1De7ce284",
-  "deploymentTime": "2025-10-31T17:38:41.462Z",
-  "network": "ganache-local",
-  "blockNumber": 75
+  "contractName": "VotingSystem",
+  "contractAddress": "0xb7b9413fd92C1cC551Af838c60F5290Bc6ff0020",
+  "deployer": "0x53b9dA0661615B9b082E4D24661aBB840F04C653",
+  "deploymentTime": "2025-11-03T16:21:25.289Z",
+  "network": "sepolia",
+  "chainId": 11155111,
+  "blockNumber": 9552744,
+  "transactionHash": "0xa5721a1a641154fe90c3a3cd3d470c07ddc2df8c0f787343b9392b496592b043"
 }

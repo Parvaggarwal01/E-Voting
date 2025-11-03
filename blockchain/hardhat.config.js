@@ -1,4 +1,5 @@
-require("@nomicfoundation/hardhat-ethers");
+require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config({ path: "../Backend/.env" });
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -13,16 +14,19 @@ module.exports = {
   },
   networks: {
     localhost: {
-      url: "http://127.0.0.1:7545", // Your Ganache URL
-      chainId: 1337, // Ganache default chain ID
+      url: "http://127.0.0.1:7545", // For Ganache
+      chainId: 1337,
     },
     ganache: {
       url: "http://127.0.0.1:7545",
       chainId: 1337,
-      accounts: [
-        // Add your Ganache private keys here if needed
-        // "0x..."
-      ],
+    },
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      chainId: 11155111, // Sepolia Chain ID
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+      gasPrice: 20000000000, // 20 gwei
+      gas: 6000000,
     },
   },
   paths: {

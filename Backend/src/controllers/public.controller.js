@@ -63,14 +63,6 @@ exports.getElectionResults = async (req, res) => {
       include: {
         parties: true,
         status: true,
-        results: {
-          where: { isPublished: true },
-          include: { party: true },
-          orderBy: [
-            { voteCount: "desc" },
-            { party: { name: "asc" } }, // Tie-breaker
-          ],
-        },
       },
     });
 
@@ -82,20 +74,49 @@ exports.getElectionResults = async (req, res) => {
       return res.status(403).json({ error: "Results not yet published" });
     }
 
-    const totalVotes = election.status.totalVotes;
+    // Get anonymous votes from CentralBallotBox
+    const anonymousVotes = await prisma.centralBallotBox.findMany({
+      where: { electionId: id },
+    });
+
+    // Count votes by party from anonymous vote storage
+    const partyVoteCounts = {};
+    election.parties.forEach((party) => {
+      partyVoteCounts[party.id] = {
+        party: party,
+        voteCount: 0,
+      };
+    });
+
+    // Parse anonymous votes and count by party
+    anonymousVotes.forEach((vote) => {
+      try {
+        const voteData = JSON.parse(vote.voteMessage);
+        if (partyVoteCounts[voteData.partyId]) {
+          partyVoteCounts[voteData.partyId].voteCount++;
+        }
+      } catch (error) {
+        console.error("Error parsing vote message:", error);
+      }
+    });
+
+    // Convert to results array sorted by vote count
+    const results = Object.values(partyVoteCounts).sort(
+      (a, b) => b.voteCount - a.voteCount
+    );
+
+    const totalVotes = anonymousVotes.length;
 
     // Check for draw/tie
-    const highestVoteCount =
-      election.results.length > 0 ? election.results[0].voteCount : 0;
-    const winnersCount = election.results.filter(
+    const highestVoteCount = results.length > 0 ? results[0].voteCount : 0;
+    const winnersCount = results.filter(
       (r) => r.voteCount === highestVoteCount && r.voteCount > 0
     ).length;
     const isDraw = winnersCount > 1 && highestVoteCount > 0;
 
-    const winner =
-      !isDraw && election.results.length > 0 ? election.results[0] : null;
+    const winner = !isDraw && results.length > 0 ? results[0] : null;
     const drawParties = isDraw
-      ? election.results.filter((r) => r.voteCount === highestVoteCount)
+      ? results.filter((r) => r.voteCount === highestVoteCount)
       : [];
 
     res.status(200).json({
@@ -111,7 +132,10 @@ exports.getElectionResults = async (req, res) => {
         ? {
             party: winner.party,
             voteCount: winner.voteCount,
-            percentage: winner.percentage,
+            percentage:
+              totalVotes > 0
+                ? ((winner.voteCount / totalVotes) * 100).toFixed(1)
+                : "0",
           }
         : null,
       isDraw,
@@ -122,17 +146,23 @@ exports.getElectionResults = async (req, res) => {
           symbolUrl: party.party.symbolUrl,
         },
         voteCount: party.voteCount,
-        percentage: party.percentage,
+        percentage:
+          totalVotes > 0
+            ? ((party.voteCount / totalVotes) * 100).toFixed(1)
+            : "0",
       })),
-      results: election.results.map((result) => ({
+      results: results.map((result) => ({
         party: {
           id: result.party.id,
           name: result.party.name,
           symbolUrl: result.party.symbolUrl,
         },
         voteCount: result.voteCount,
-        percentage: result.percentage,
-        publishedAt: result.publishedAt,
+        percentage:
+          totalVotes > 0
+            ? ((result.voteCount / totalVotes) * 100).toFixed(1)
+            : "0",
+        publishedAt: new Date(),
       })),
     });
   } catch (error) {

@@ -11,7 +11,7 @@ const crypto = require("crypto");
 const blockchainConfig = require("../../../Frontend/src/config/blockchain.json");
 
 const provider = new ethers.JsonRpcProvider(
-  blockchainConfig.networkConfig.rpcUrl
+  process.env.SEPOLIA_RPC_URL || blockchainConfig.networkConfig.rpcUrl
 );
 const ecWallet = new ethers.Wallet(process.env.EC_PRIVATE_KEY, provider);
 const immutableVotingContract = new ethers.Contract(
@@ -233,15 +233,27 @@ exports.calculateResults = async (req, res) => {
     // Process votes - count each vote for the correct party
     let validVoteCount = 0;
     electionVotes.forEach((vote) => {
-      console.log(
-        `Processing vote: ${vote.voteMessage} for election: ${vote.electionId}`
-      );
-      if (voteCounts.hasOwnProperty(vote.voteMessage)) {
-        voteCounts[vote.voteMessage]++;
-        validVoteCount++;
-        console.log(`✅ Vote counted for party: ${vote.voteMessage}`);
-      } else {
-        console.log(`⚠️ Invalid party ID in vote: ${vote.voteMessage}`);
+      try {
+        // Parse the JSON vote message to get party ID
+        const voteData = JSON.parse(vote.voteMessage);
+        const partyId = voteData.partyId;
+
+        console.log(
+          `Processing vote: partyId=${partyId} for election: ${vote.electionId}`
+        );
+
+        if (voteCounts.hasOwnProperty(partyId)) {
+          voteCounts[partyId]++;
+          validVoteCount++;
+          console.log(`✅ Vote counted for party: ${partyId}`);
+        } else {
+          console.log(`⚠️ Invalid party ID in vote: ${partyId}`);
+        }
+      } catch (error) {
+        console.log(
+          `⚠️ Error parsing vote message: ${vote.voteMessage}`,
+          error
+        );
       }
     });
 
@@ -393,10 +405,7 @@ exports.getElectionStats = async (req, res) => {
       include: {
         status: true,
         voterStatuses: true,
-        results: {
-          include: { party: true },
-          orderBy: { voteCount: "desc" },
-        },
+        parties: true,
       },
     });
 
@@ -406,6 +415,37 @@ exports.getElectionStats = async (req, res) => {
 
     const totalRegisteredVoters = await prisma.voter.count();
     const votersWhoVoted = election.voterStatuses.length;
+
+    // Get anonymous votes from CentralBallotBox
+    const anonymousVotes = await prisma.centralBallotBox.findMany({
+      where: { electionId: electionId },
+    });
+
+    // Count votes by party from anonymous vote storage
+    const partyVoteCounts = {};
+    election.parties.forEach((party) => {
+      partyVoteCounts[party.id] = {
+        party: party,
+        voteCount: 0,
+      };
+    });
+
+    // Parse anonymous votes and count by party
+    anonymousVotes.forEach((vote) => {
+      try {
+        const voteData = JSON.parse(vote.voteMessage);
+        if (partyVoteCounts[voteData.partyId]) {
+          partyVoteCounts[voteData.partyId].voteCount++;
+        }
+      } catch (error) {
+        console.error("Error parsing vote message:", error);
+      }
+    });
+
+    // Convert to results array sorted by vote count
+    const results = Object.values(partyVoteCounts).sort(
+      (a, b) => b.voteCount - a.voteCount
+    );
 
     res.status(200).json({
       status: {
@@ -419,8 +459,8 @@ exports.getElectionStats = async (req, res) => {
             ? Math.round((votersWhoVoted / totalRegisteredVoters) * 100)
             : 0,
       },
-      totalVotes: election.status?.totalVotes || 0,
-      results: election.results,
+      totalVotes: anonymousVotes.length,
+      results: results,
     });
   } catch (error) {
     console.error("Error getting election stats:", error);

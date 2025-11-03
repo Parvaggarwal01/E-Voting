@@ -27,10 +27,8 @@ async function testVoteCasting() {
     // Load blockchain config
     const blockchainConfig = require("../Frontend/src/config/blockchain.json");
 
-    // Setup blockchain connection
-    const provider = new ethers.JsonRpcProvider(
-      blockchainConfig.networkConfig.rpcUrl
-    );
+    // Setup blockchain connection using environment variables for RPC
+    const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
     const ecWallet = new ethers.Wallet(process.env.EC_PRIVATE_KEY, provider);
     const voteStorageContract = new ethers.Contract(
       blockchainConfig.contractAddress,
@@ -53,12 +51,12 @@ async function testVoteCasting() {
     console.log(`📋 Vote hash: ${voteHash}`);
     console.log(`🏛️ Election ID: ${election.id}`);
 
-    // Cast vote on blockchain
+    // Cast vote on blockchain (VotingSystem.castVote: voteHash, electionId, partyId, blindSignature)
     const tx = await voteStorageContract.castVote(
-      election.id, // Database election UUID
-      voteHash,
-      blindSignature,
-      partyId // Database party UUID
+      voteHash, // bytes32 - First parameter
+      election.id, // string - Second parameter (database election UUID)
+      partyId, // string - Third parameter
+      blindSignature // bytes32 - Fourth parameter
     );
 
     console.log(`⏳ Transaction sent: ${tx.hash}`);

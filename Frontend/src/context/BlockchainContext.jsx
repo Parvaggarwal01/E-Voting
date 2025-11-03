@@ -31,14 +31,29 @@ export const BlockchainProvider = ({ children }) => {
       setWalletAddress(result.address);
       setChainId(result.chainId);
 
-      // Load blockchain stats
-      const stats = await blockchainService.getBlockchainStats();
-      setBlockchainStats(stats);
+      // Load blockchain stats only if connected successfully
+      if (result.success) {
+        try {
+          const stats = await blockchainService.getBlockchainStats();
+          setBlockchainStats(stats);
+        } catch (statsError) {
+          console.warn(
+            "⚠️ Could not load blockchain stats:",
+            statsError.message
+          );
+        }
+      }
 
       console.log("🟢 Wallet connected:", result.address);
+      return result;
     } catch (error) {
       setError(error.message);
+      setIsConnected(false);
+      setWalletAddress(null);
+      setChainId(null);
+      setBlockchainStats(null);
       console.error("❌ Wallet connection failed:", error);
+      throw error; // Re-throw to prevent auto-connect loops
     } finally {
       setLoading(false);
     }
@@ -129,17 +144,28 @@ export const BlockchainProvider = ({ children }) => {
   // Auto-connect if previously connected
   useEffect(() => {
     const autoConnect = async () => {
-      if (window.ethereum && window.ethereum.selectedAddress) {
+      // Only auto-connect if MetaMask is available and user has previously connected
+      if (
+        window.ethereum &&
+        window.ethereum.selectedAddress &&
+        !isConnected &&
+        !loading
+      ) {
         try {
+          console.log("🔄 Attempting auto-connect...");
           await connectWallet();
         } catch (error) {
           console.log("Auto-connect failed:", error.message);
+          // Don't retry auto-connect on failure
         }
       }
     };
 
-    autoConnect();
-  }, []);
+    // Add a small delay to ensure MetaMask is fully loaded
+    const timeoutId = setTimeout(autoConnect, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, []); // Only run once on mount
 
   // Listen for account changes
   useEffect(() => {
@@ -149,9 +175,16 @@ export const BlockchainProvider = ({ children }) => {
           // User disconnected
           setIsConnected(false);
           setWalletAddress(null);
-        } else if (accounts[0] !== walletAddress) {
-          // User switched accounts
-          connectWallet();
+          setChainId(null);
+          setBlockchainStats(null);
+          setError("Wallet disconnected");
+          console.log("🔌 Wallet disconnected");
+        } else if (accounts[0] !== walletAddress && !loading) {
+          // User switched accounts - only reconnect if not already loading
+          console.log("👤 Account changed, reconnecting...");
+          connectWallet().catch((error) => {
+            console.error("Account change reconnection failed:", error);
+          });
         }
       };
 
@@ -175,6 +208,22 @@ export const BlockchainProvider = ({ children }) => {
     }
   }, [walletAddress]);
 
+  // Disconnect wallet
+  const disconnectWallet = () => {
+    setIsConnected(false);
+    setWalletAddress(null);
+    setChainId(null);
+    setBlockchainStats(null);
+    setError(null);
+    setLoading(false);
+    console.log("🔌 Wallet manually disconnected");
+  };
+
+  // Clear error
+  const clearError = () => {
+    setError(null);
+  };
+
   const value = {
     isConnected,
     walletAddress,
@@ -183,6 +232,8 @@ export const BlockchainProvider = ({ children }) => {
     loading,
     error,
     connectWallet,
+    disconnectWallet,
+    clearError,
     registerVoterOnBlockchain,
     castVoteOnBlockchain,
     createElectionOnBlockchain,

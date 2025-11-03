@@ -3,8 +3,15 @@ import { useBlockchain } from "../../context/BlockchainContext";
 import { api } from "../../services/api";
 
 function BlockchainManager() {
-  const { isConnected, walletAddress, chainId, loading, error, connectWallet } =
-    useBlockchain();
+  const {
+    isConnected,
+    walletAddress,
+    chainId,
+    loading,
+    error,
+    connectWallet,
+    clearError,
+  } = useBlockchain();
 
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [realBlockchainStats, setRealBlockchainStats] = useState(null);
@@ -56,11 +63,15 @@ function BlockchainManager() {
   };
 
   const handleConnect = async () => {
-    setConnectionStatus("connecting");
+    // Clear any previous errors
+    clearError();
+
     try {
       await connectWallet();
+      // Success case is handled by the context
     } catch (error) {
-      setConnectionStatus("error");
+      console.error("Connection failed:", error);
+      // Error is handled by the context
     }
   };
 
@@ -103,7 +114,14 @@ function BlockchainManager() {
             </div>
             <div>
               <label className="text-sm text-[#3F3F46]">Network:</label>
-              <p className="text-black">Ganache Local (Chain ID: {chainId})</p>
+              <p className="text-black">
+                {chainId === "11155111"
+                  ? "Sepolia Testnet"
+                  : chainId === "1337"
+                  ? "Ganache Local"
+                  : "Unknown Network"}
+                (Chain ID: {chainId})
+              </p>
             </div>
           </div>
         ) : (
@@ -115,19 +133,31 @@ function BlockchainManager() {
 
             <button
               onClick={handleConnect}
-              disabled={loading || connectionStatus === "connecting"}
+              disabled={loading}
               className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading || connectionStatus === "connecting"
-                ? "Connecting..."
-                : "Connect Wallet"}
+              {loading ? "Connecting..." : "Connect Wallet"}
             </button>
           </div>
         )}
 
         {error && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{error}</p>
+            <div className="flex justify-between items-start">
+              <p className="text-red-600 text-sm flex-1">{error}</p>
+              <button
+                onClick={clearError}
+                className="ml-3 text-red-400 hover:text-red-600 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            {error.includes("Chain ID") && (
+              <p className="text-red-500 text-xs mt-2">
+                💡 Switch to Sepolia Testnet in MetaMask and try connecting
+                again.
+              </p>
+            )}
           </div>
         )}
       </div>

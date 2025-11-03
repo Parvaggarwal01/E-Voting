@@ -102,6 +102,21 @@ model CentralBallotBox {
   electionId        String
 }
 
+model Vote {
+  id               String   @id @default(cuid())
+  voterId          String
+  electionId       String
+  partyId          String
+  voteHash         String
+  blindSignature   String
+  blockchainTxHash String?
+  submissionTime   DateTime @default(now())
+  isVerified       Boolean  @default(false)
+
+  @@unique([voterId, electionId])
+  @@map("votes")
+}
+
 model Receipt {
   id          String   @id @default(cuid())
   receiptCode String   @unique

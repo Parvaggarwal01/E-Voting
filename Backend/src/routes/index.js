@@ -6,6 +6,7 @@ const publicRoutes = require("./public.routes");
 const partyRoutes = require("./party.routes");
 const blockchainRoutes = require("./blockchain.routes");
 const manifestoRoutes = require("./manifesto.routes");
+const resultsRoutes = require("./results.routes");
 
 const router = express.Router();
 
@@ -16,5 +17,6 @@ router.use("/public", publicRoutes);
 router.use("/party", partyRoutes);
 router.use("/blockchain", blockchainRoutes);
 router.use("/manifesto", manifestoRoutes);
+router.use("/results", resultsRoutes);
 
 module.exports = router;

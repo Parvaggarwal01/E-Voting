@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 
 // --- BLOCKCHAIN SETUP WITH EC WALLET ---
 const provider = new ethers.JsonRpcProvider(
-  blockchainConfig.networkConfig.rpcUrl
+  process.env.SEPOLIA_RPC_URL || blockchainConfig.networkConfig.rpcUrl
 );
 const ecWallet = new ethers.Wallet(process.env.EC_PRIVATE_KEY, provider);
 const immutableVotingContract = new ethers.Contract(
@@ -144,17 +144,19 @@ exports.submitVoteToChain = async (req, res) => {
     );
 
     console.log(`🔗 Calling blockchain contract with:`, {
+      voteHash: voteHash.substring(0, 10) + "...",
       electionId: blockchainElectionId,
       partyId,
-      voteHashPreview: voteHash.substring(0, 10) + "...",
+      blindSignature: blindSignatureBytes.substring(0, 10) + "...",
     });
 
-    // 6. Call the smart contract (VoteStorage.castVote)
+    // 6. Call the smart contract (VotingSystem.castVote)
+    // Parameters: voteHash, electionId, partyId, blindSignature
     const tx = await immutableVotingContract.castVote(
-      blockchainElectionId, // This is now the database election UUID
-      voteHash,
-      blindSignatureBytes,
-      partyId
+      voteHash, // bytes32 - First parameter
+      blockchainElectionId, // string - Second parameter (database election UUID)
+      partyId, // string - Third parameter
+      blindSignatureBytes // bytes32 - Fourth parameter
     );
 
     console.log("⏳ Transaction sent... waiting for confirmation...");
@@ -162,12 +164,49 @@ exports.submitVoteToChain = async (req, res) => {
 
     console.log(`✅ Vote successfully mined! TxHash: ${receipt.hash}`);
 
-    // 7. Mark the voter as having voted in our database
+    // 7. **CRITICAL:** Store ANONYMOUS vote in CentralBallotBox (NO voter identity linked!)
+    console.log("💾 Storing anonymous vote in CentralBallotBox for privacy...");
+
+    // Create anonymous vote message (NO voterId for privacy protection)
+    const anonymousVoteMessage = JSON.stringify({
+      electionId: electionId,
+      partyId: partyId,
+      voteHash: voteHash,
+      timestamp: new Date().toISOString(),
+      // NOTE: NO voterId included to protect voter privacy!
+    });
+
+    // Create cryptographic hash for integrity
+    const currentEntryHash = ethers.keccak256(
+      ethers.toUtf8Bytes(anonymousVoteMessage + receipt.hash)
+    );
+
+    // Get previous entry hash for blockchain-style integrity
+    const lastEntry = await prisma.centralBallotBox.findFirst({
+      where: { electionId: electionId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Store anonymous vote in CentralBallotBox
+    const anonymousVoteRecord = await prisma.centralBallotBox.create({
+      data: {
+        voteMessage: anonymousVoteMessage,
+        voteSignature: blindSignatureBytes.toString(),
+        previousEntryHash: lastEntry?.currentEntryHash || null,
+        currentEntryHash: currentEntryHash,
+        electionId: electionId,
+      },
+    });
+    console.log(
+      `✅ Anonymous vote stored in CentralBallotBox with ID: ${anonymousVoteRecord.id}`
+    );
+
+    // 8. Mark the voter as having voted in our database
     await prisma.voterElectionStatus.create({
       data: { voterId, electionId },
     });
 
-    // 8. Save the blockchain receipt to our database
+    // 9. Save the blockchain receipt to our database
     await prisma.receipt.create({
       data: {
         receiptCode: receipt.hash,
@@ -176,11 +215,16 @@ exports.submitVoteToChain = async (req, res) => {
     });
 
     // 10. Send successful response back to the voter
-    res.status(200).json({
-      message: "Vote cast successfully!",
+    return res.status(200).json({
+      success: true,
+      message:
+        "Vote successfully cast on blockchain AND stored anonymously in database",
+      txHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      anonymousVoteId: anonymousVoteRecord.id,
+      voterElectionStatus: { voterId, electionId },
       receipt: {
-        receiptCode: receipt.hash,
-        blockNumber: Number(receipt.blockNumber),
+        receiptCode: receipt.hash, // Frontend expects this structure
       },
     });
   } catch (error) {

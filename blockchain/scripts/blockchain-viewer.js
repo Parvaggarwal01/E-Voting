@@ -24,8 +24,8 @@ async function viewBlockchainData() {
     console.log("📊 BLOCKCHAIN STATISTICS");
     console.log("-".repeat(30));
 
-    const totalVoters = await contract.getTotalVoters();
-    const totalVotes = await contract.getTotalVotes();
+    const totalVoters = await contract.voterCount();
+    const totalVotes = await contract.voteCount();
 
     console.log(`👥 Total Voters: ${totalVoters.toString()}`);
     console.log(`🗳️ Total Votes: ${totalVotes.toString()}`);
